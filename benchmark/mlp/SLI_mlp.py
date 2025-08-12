@@ -5,7 +5,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+import matplotlib.pyplot as plt
 
 # MFCC 参数设置（可根据需求调整）
 n_mfcc = 13  # MFCC 系数阶数
@@ -98,11 +99,22 @@ if __name__ == "__main__":
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
+    # 用于记录每轮的指标
+    train_losses = []
+    train_accuracies = []
+    test_accuracies = []
+    test_recalls = []
+    test_specificities = []
+    test_f1_scores = []
+    test_aucs = []
+
     # 训练模型
     num_epochs = 10
     for epoch in range(num_epochs):
         model.train()
         running_loss = 0.0
+        correct = 0
+        total = 0
         for inputs, targets in train_loader:
             optimizer.zero_grad()
             outputs = model(inputs)
@@ -110,37 +122,74 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
             running_loss += loss.item() * inputs.size(0)
+
+            _, predicted = torch.max(outputs.data, 1)
+            total += targets.size(0)
+            correct += (predicted == targets).sum().item()
+
         epoch_loss = running_loss / len(train_dataset)
-        print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f}")
+        train_accuracy = 100 * correct / total
+        train_losses.append(epoch_loss)
+        train_accuracies.append(train_accuracy)
 
-    # 测试模型
-    model.eval()
-    y_pred = []
-    y_true = []
-    with torch.no_grad():
-        for inputs, targets in test_loader:
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs, 1)
-            y_pred.extend(predicted.tolist())
-            y_true.extend(targets.tolist())
+        # 测试模型并记录指标
+        model.eval()
+        y_pred = []
+        y_true = []
+        y_scores = []
+        with torch.no_grad():
+            for inputs, targets in test_loader:
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs, 1)
+                y_pred.extend(predicted.tolist())
+                y_true.extend(targets.tolist())
+                probs = torch.softmax(outputs, dim=1)[:, 1].tolist()  # 取疾病类别的概率
+                y_scores.extend(probs)
 
-    # 计算评估指标
-    accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred)
-    recall = recall_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred)
-    # 若为二分类且标签是 0/1 ，可计算 AUC ，需要先获取预测概率
-    # 这里重新获取测试集预测概率示例
-    y_scores = []
-    with torch.no_grad():
-        for inputs, _ in test_loader:
-            outputs = model(inputs)
-            probs = torch.softmax(outputs, dim=1)[:, 1].tolist()  # 取疾病类别的概率
-            y_scores.extend(probs)
-    auc = roc_auc_score(y_true, y_scores)
+        # 计算测试集指标
+        accuracy = accuracy_score(y_true, y_pred)
+        recall = recall_score(y_true, y_pred)
+        # 计算特异度
+        cm = confusion_matrix(y_true, y_pred)
+        if cm.shape == (2, 2):
+            tn, fp, fn, tp = cm.ravel()
+            specificity = tn / (tn + fp) if (tn + fp) != 0 else 0
+        else:
+            specificity = 0
+        f1 = f1_score(y_true, y_pred)
+        auc = roc_auc_score(y_true, y_scores)
 
-    print(f"Accuracy: {accuracy:.4f}")
-    print(f"Precision: {precision:.4f}")
-    print(f"Recall: {recall:.4f}")
-    print(f"F1 Score: {f1:.4f}")
-    print(f"AUC: {auc:.4f}")
+        test_accuracies.append(accuracy)
+        test_recalls.append(recall)
+        test_specificities.append(specificity)
+        test_f1_scores.append(f1)
+        test_aucs.append(auc)
+
+        print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f}, Train Accuracy: {train_accuracy:.2f}%, Test Accuracy: {accuracy:.4f}, Recall: {recall:.4f}, Specificity: {specificity:.4f}, F1: {f1:.4f}, AUC: {auc:.4f}")
+
+    # 绘制并保存损失和准确率图像
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(train_losses, label='Training Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Training Loss Over Epochs')
+    plt.legend()
+
+    plt.subplot(1, 2, 2)
+    plt.plot(train_accuracies, label='Training Accuracy')
+    plt.plot(test_accuracies, label='Test Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.title('Accuracy Over Epochs')
+    plt.legend()
+
+    plt.savefig('training_metrics.png')
+    plt.close()
+
+    # 将指标写入文本文档
+    metrics_file = open('training_metrics.txt', 'w')
+    metrics_file.write('Epoch\tTrain Loss\tTrain Accuracy (%)\tTest Accuracy\tTest Recall\tTest Specificity\tTest F1 Score\tTest AUC\n')
+    for i in range(num_epochs):
+        metrics_file.write(f"{i + 1}\t{train_losses[i]:.4f}\t{train_accuracies[i]:.2f}\t{test_accuracies[i]:.4f}\t{test_recalls[i]:.4f}\t{test_specificities[i]:.4f}\t{test_f1_scores[i]:.4f}\t{test_aucs[i]:.4f}\n")
+    metrics_file.close()

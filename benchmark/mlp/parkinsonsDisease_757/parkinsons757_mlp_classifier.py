@@ -318,7 +318,7 @@ def main():
     
     # 初始化模型、损失函数和优化器
     input_dim = dataset.features.shape[1]  # 特征维度
-    model = MLP_757(input_dim, config.HIDDEN_SIZE)
+    model = MLP(input_dim, config.HIDDEN_SIZE)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
     

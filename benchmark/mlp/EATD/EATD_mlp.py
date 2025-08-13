@@ -22,7 +22,7 @@ class Config:
     RANDOM_STATE = 42
     BATCH_SIZE = 8
     LEARNING_RATE = 0.001
-    NUM_EPOCHS = 20
+    NUM_EPOCHS = 80
     
     # 模型相关
     HIDDEN_SIZE = 64  # MLP隐藏层大小
@@ -166,18 +166,40 @@ class MLP(nn.Module):
         x = self.fc2(x)
         return x
 
+class MLP_757(nn.Module):
+    def __init__(self, input_dim, hidden_size=64):
+        super(MLP_757, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_size)
+        self.relu1 = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_size, 32)
+        self.relu2 = nn.ReLU()
+        self.fc3 = nn.Linear(32, 2)
+       
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu1(x)
+        x = self.fc2(x)
+        x = self.relu2(x)
+        x = self.fc3(x)
+        # x = self.relu3(x)
+        # x = self.fc4(x)
+        return x
+
+
 # 训练和评估模型的通用函数
 def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, optimizer, config):
     # 用于记录每轮的指标
     train_losses = []
+    val_losses = []  # 验证损失记录
     train_accuracies = []
     val_accuracies = []
-    
-    # 测试集最终评估指标
-    final_test_metrics = None
+    # 记录每轮测试集的详细指标
+    test_metrics_per_epoch = []
     
     # 训练模型
     for epoch in range(config.NUM_EPOCHS):
+        # 训练阶段
         model.train()
         running_loss = 0.0
         correct = 0
@@ -201,29 +223,56 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
         train_losses.append(epoch_loss)
         train_accuracies.append(train_accuracy)
         
-        # 在验证集上评估
-        val_accuracy = evaluate_model(model, val_loader)
+        # 验证阶段（同时计算验证损失）
+        model.eval()
+        val_running_loss = 0.0  # 验证损失累加器
+        val_correct = 0
+        val_total = 0
+        
+        with torch.no_grad():
+            for inputs, targets in val_loader:
+                outputs = model(inputs)
+                # 计算验证损失
+                loss = criterion(outputs, targets)
+                val_running_loss += loss.item() * inputs.size(0)
+                
+                # 计算验证准确率
+                _, predicted = torch.max(outputs.data, 1)
+                val_total += targets.size(0)
+                val_correct += (predicted == targets).sum().item()
+        
+        # 计算验证集指标
+        val_loss = val_running_loss / len(val_loader.dataset)
+        val_accuracy = 100 * val_correct / val_total
+        val_losses.append(val_loss)
         val_accuracies.append(val_accuracy)
+        
+        # 记录测试集指标
+        test_metrics = evaluate_model_detailed(model, test_loader, verbose=False)
+        test_metrics_per_epoch.append(test_metrics)
         
         # 打印本轮指标
         print(f"Epoch {epoch + 1}/{config.NUM_EPOCHS}")
         print(f"训练: 损失={epoch_loss:.4f}, 准确率={train_accuracy:.2f}%")
-        print(f"验证: 准确率={val_accuracy:.2f}%")
+        print(f"验证: 损失={val_loss:.4f}, 准确率={val_accuracy:.2f}%")
+        print(f"测试: 准确率={test_metrics['accuracy']:.2f}%, 灵敏度={test_metrics['recall']:.4f}")
         print("----------------------------------------")
     
-    # 训练结束后，在测试集上进行最终评估
+    # 训练结束后，获取最终测试集评估
     print("\n在测试集上进行最终评估...")
-    final_test_metrics = evaluate_model_detailed(model, test_loader)
+    final_test_metrics = evaluate_model_detailed(model, test_loader, verbose=True)
     
     return {
         "train_losses": train_losses,
+        "val_losses": val_losses,  # 返回验证损失
         "train_accuracies": train_accuracies,
         "val_accuracies": val_accuracies,
+        "test_metrics_per_epoch": test_metrics_per_epoch,
         "final_test_metrics": final_test_metrics
     }
 
 def evaluate_model(model, data_loader):
-    """简单评估模型准确率"""
+    """简单评估模型准确率（保留此函数用于兼容其他调用）"""
     model.eval()
     correct = 0
     total = 0
@@ -237,7 +286,7 @@ def evaluate_model(model, data_loader):
     
     return 100 * correct / total
 
-def evaluate_model_detailed(model, data_loader):
+def evaluate_model_detailed(model, data_loader, verbose=False):
     """详细评估模型，返回各种指标"""
     model.eval()
     y_pred = []
@@ -280,10 +329,11 @@ def evaluate_model_detailed(model, data_loader):
     f1 = f1_score(y_true, y_pred)
     auc = roc_auc_score(y_true, y_scores) if len(set(y_true)) > 1 else 0  # 确保有两个类别
     
-    # 打印测试集指标
-    print(f"测试集指标:")
-    print(f"准确率={accuracy:.2f}%, 灵敏度={recall:.4f}, 特异度={specificity:.4f}")
-    print(f"F1={f1:.4f}, AUC={auc:.4f}, TP={tp}, TN={tn}, FP={fp}, FN={fn}")
+    # 打印测试集指标（仅当verbose=True时）
+    if verbose:
+        print(f"测试集指标:")
+        print(f"准确率={accuracy:.2f}%, 灵敏度={recall:.4f}, 特异度={specificity:.4f}")
+        print(f"F1={f1:.4f}, AUC={auc:.4f}, TP={tp}, TN={tn}, FP={fp}, FN={fn}")
     
     return {
         "accuracy": accuracy,
@@ -310,12 +360,13 @@ def save_results(metrics, config):
     # 绘制并保存损失和准确率图像
     plt.figure(figsize=(12, 5))
     
-    # 损失图像
+    # 损失图像（包含训练和验证损失）
     plt.subplot(1, 2, 1)
     plt.plot(metrics["train_losses"], label='Training Loss')
+    plt.plot(metrics["val_losses"], label='Validation Loss')  # 新增验证损失曲线
     plt.xlabel('Epoch')
     plt.ylabel('Loss')
-    plt.title('Training Loss Over Epochs')
+    plt.title('Training and Validation Loss Over Epochs')  # 更新标题
     plt.legend()
     plt.grid(alpha=0.3)
     
@@ -323,6 +374,7 @@ def save_results(metrics, config):
     plt.subplot(1, 2, 2)
     plt.plot(metrics["train_accuracies"], label='Training Accuracy')
     plt.plot(metrics["val_accuracies"], label='Validation Accuracy')
+    plt.plot([m["accuracy"] for m in metrics["test_metrics_per_epoch"]], label='Test Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy (%)')
     plt.title('Accuracy Over Epochs')
@@ -337,25 +389,35 @@ def save_results(metrics, config):
     
     # 将详细指标写入文本文档
     metrics_path = os.path.join(config.OUTPUT_DIR, config.METRICS_FILENAME)
-    with open(metrics_path, 'w') as f:
-        # 写入训练过程指标
-        f.write("===== 训练过程指标 =====\n")
-        f.write("Epoch\tTrain Loss\tTrain Accuracy(%)\tValidation Accuracy(%)\n")
-        for i in range(config.NUM_EPOCHS):
-            f.write(f"{i + 1}\t{metrics['train_losses'][i]:.4f}\t{metrics['train_accuracies'][i]:.2f}\t{metrics['val_accuracies'][i]:.2f}\n")
+    with open(metrics_path, 'w') as f:  # 使用'w'模式覆盖旧文件，确保数据准确性
+        # 写入表头
+        f.write("Epoch\tTrain Loss\tVal Loss\tTrain Accuracy(%)\tTest Accuracy(%)\tSensitivity\tSpecificity\tF1 Score\tAUC\tTP\tTN\tFP\tFN\tTotal Samples\tActual Healthy\tActual Patients\tPredicted Healthy\tPredicted Patients\n")
         
-        # 写入最终测试集指标
+        # 写入每轮的详细指标
+        for i in range(len(metrics["train_losses"])):
+            test = metrics["test_metrics_per_epoch"][i]
+            f.write(f"{i + 1}\t")
+            f.write(f"{metrics['train_losses'][i]:.4f}\t")
+            f.write(f"{metrics['val_losses'][i]:.4f}\t")  # 新增验证损失
+            f.write(f"{metrics['train_accuracies'][i]:.2f}\t")
+            f.write(f"{test['accuracy']:.2f}\t")
+            f.write(f"{test['recall']:.4f}\t")
+            f.write(f"{test['specificity']:.4f}\t")
+            f.write(f"{test['f1']:.4f}\t")
+            f.write(f"{test['auc']:.4f}\t")
+            f.write(f"{test['tp']}\t{test['tn']}\t{test['fp']}\t{test['fn']}\t")
+            f.write(f"{test['total_samples']}\t{test['actual_healthy']}\t{test['actual_patients']}\t")
+            f.write(f"{test['pred_healthy']}\t{test['pred_patients']}\n")
+        
+        # 写入最终测试集指标（单独标记）
         f.write("\n===== 最终测试集指标 =====\n")
-        test = metrics["final_test_metrics"]
-        f.write(f"准确率: {test['accuracy']:.2f}%\n")
-        f.write(f"灵敏度: {test['recall']:.4f}\n")
-        f.write(f"特异度: {test['specificity']:.4f}\n")
-        f.write(f"F1分数: {test['f1']:.4f}\n")
-        f.write(f"AUC: {test['auc']:.4f}\n")
-        f.write(f"混淆矩阵: TP={test['tp']}, TN={test['tn']}, FP={test['fp']}, FN={test['fn']}\n")
-        f.write(f"总样本数: {test['total_samples']}\n")
-        f.write(f"实际健康样本数: {test['actual_healthy']}\n")
-        f.write(f"实际患者样本数: {test['actual_patients']}\n")
+        final = metrics["final_test_metrics"]
+        f.write(f"准确率: {final['accuracy']:.2f}%\n")
+        f.write(f"灵敏度: {final['recall']:.4f}\n")
+        f.write(f"特异度: {final['specificity']:.4f}\n")
+        f.write(f"F1分数: {final['f1']:.4f}\n")
+        f.write(f"AUC: {final['auc']:.4f}\n")
+        f.write(f"混淆矩阵: TP={final['tp']}, TN={final['tn']}, FP={final['fp']}, FN={final['fn']}\n")
     
     print(f"详细指标数据已保存至: {metrics_path}")
 
@@ -377,7 +439,7 @@ def main():
     test_features, test_labels = EATDDataset.load_test_data(
         config.DATA_ROOT, config.VALID_FOLDER_PREFIX)
     
-    # ====== 新增：重采样平衡训练数据 ======
+    # 重采样平衡训练数据
     print("\n重采样前训练集类别分布：")
     print(f"健康样本数: {np.sum(train_labels == 0)}")
     print(f"患者样本数: {np.sum(train_labels == 1)}")
@@ -391,7 +453,6 @@ def main():
     print("重采样后训练集类别分布：")
     print(f"健康样本数: {np.sum(train_labels_resampled == 0)}")
     print(f"患者样本数: {np.sum(train_labels_resampled == 1)}")
-    # =====================================
     
     # 对所有特征使用训练数据的标准化器进行标准化
     scaler = StandardScaler()
@@ -431,4 +492,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

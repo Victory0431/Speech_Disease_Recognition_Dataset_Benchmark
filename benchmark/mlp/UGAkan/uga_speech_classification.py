@@ -69,63 +69,96 @@ class BaseDataset(Dataset):
 
 class UGADataset(BaseDataset):
     @classmethod
-    def load_data(cls, directories):
-        """加载UGAkan数据集，从指定目录读取MP3文件"""
-        features = []
-        labels = []
-
-        # 遍历每个类别目录
-        for label, dir_path in enumerate(tqdm(directories, desc="Processing classes")):
+    def load_data(cls, directories, max_workers=150):
+        """
+        加载UGAkan数据集，使用多线程加速处理
+        :param directories: 类别目录列表
+        :param max_workers: 最大线程数，默认使用CPU核心数
+        """
+        # 收集所有文件路径和对应的标签
+        file_list = []
+        for label, dir_path in enumerate(directories):
             if not os.path.exists(dir_path):
                 print(f"警告: 目录不存在: {dir_path}，跳过该类别")
                 continue
 
-            # 获取目录中所有MP3文件
             mp3_files = [f for f in os.listdir(dir_path) if f.lower().endswith('.mp3')]
             if not mp3_files:
                 print(f"警告: 未找到MP3文件，检查目录: {dir_path}，跳过该类别")
                 continue
 
-            print(f"处理类别 {Config.CLASS_NAMES[label]}，找到 {len(mp3_files)} 个文件")
-
-            # 处理每个MP3文件
-            for filename in tqdm(mp3_files, desc=f"Processing {Config.CLASS_NAMES[label]}", leave=False):
+            # 收集该类别下所有文件的完整路径和标签
+            for filename in mp3_files:
                 file_path = os.path.join(dir_path, filename)
+                file_list.append((file_path, label))
+
+        if not file_list:
+            raise ValueError("未找到任何MP3文件，请检查目录结构")
+
+        print(f"发现 {len(file_list)} 个音频文件，开始多线程处理...")
+
+        # 线程安全的结果存储
+        features = []
+        labels = []
+        errors = []
+        lock = threading.Lock()  # 用于安全地修改共享列表
+
+        # 单个文件的处理函数
+        def process_file(file_info):
+            file_path, label = file_info
+            filename = os.path.basename(file_path)
+            
+            try:
+                # 读取音频文件
+                signal, _ = librosa.load(
+                    file_path, 
+                    sr=MFCCConfig.sr
+                )
                 
-                try:
-                    # 读取音频文件
-                    signal, _ = librosa.load(
-                        file_path, 
-                        sr=MFCCConfig.sr
-                    )
-                    
-                    # 提取MFCC特征
-                    mfccs = librosa.feature.mfcc(
-                        y=signal,
-                        sr=MFCCConfig.sr,
-                        n_mfcc=MFCCConfig.n_mfcc,
-                        n_fft=MFCCConfig.n_fft,
-                        hop_length=MFCCConfig.hop_length,
-                        n_mels=MFCCConfig.n_mels,
-                        fmin=MFCCConfig.fmin,
-                        fmax=MFCCConfig.fmax
-                    )
-                    
-                    # 计算MFCC的统计特征（均值、标准差、最大值、最小值）
-                    mfccs_mean = np.mean(mfccs, axis=1)
-                    mfccs_std = np.std(mfccs, axis=1)
-                    mfccs_max = np.max(mfccs, axis=1)
-                    mfccs_min = np.min(mfccs, axis=1)
-                    
-                    # 合并特征
-                    features_combined = np.concatenate([mfccs_mean, mfccs_std, mfccs_max, mfccs_min])
-                    
+                # 提取MFCC特征
+                mfccs = librosa.feature.mfcc(
+                    y=signal,
+                    sr=MFCCConfig.sr,
+                    n_mfcc=MFCCConfig.n_mfcc,
+                    n_fft=MFCCConfig.n_fft,
+                    hop_length=MFCCConfig.hop_length,
+                    n_mels=MFCCConfig.n_mels,
+                    fmin=MFCCConfig.fmin,
+                    fmax=MFCCConfig.fmax
+                )
+                
+                # 计算MFCC的统计特征
+                mfccs_mean = np.mean(mfccs, axis=1)
+                mfccs_std = np.std(mfccs, axis=1)
+                mfccs_max = np.max(mfccs, axis=1)
+                mfccs_min = np.min(mfccs, axis=1)
+                
+                # 合并特征
+                features_combined = np.concatenate([mfccs_mean, mfccs_std, mfccs_max, mfccs_min])
+                
+                # 线程安全地添加结果
+                with lock:
                     features.append(features_combined)
                     labels.append(label)
+                
+            except Exception as e:
+                with lock:
+                    errors.append(f"处理 {filename} 时出错: {str(e)}")
 
-                except Exception as e:
-                    print(f"处理 {filename} 时出错: {str(e)}，跳过该文件")
-                    continue
+        # 使用线程池并行处理
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 使用tqdm显示进度
+            list(tqdm(executor.map(process_file, file_list), 
+                      total=len(file_list), 
+                      desc="Processing audio files"))
+
+        # 打印错误信息
+        if errors:
+            print(f"\n处理完成，共 {len(errors)} 个文件处理失败:")
+            for err in errors[:10]:  # 只显示前10个错误
+                print(err)
+            if len(errors) > 10:
+                print(f"... 还有 {len(errors)-10} 个错误未显示")
 
         # 验证数据加载结果
         if len(features) == 0:
@@ -140,6 +173,7 @@ class UGADataset(BaseDataset):
             count = np.sum(labels == i)
             print(f"{class_name} 样本数 ({i}): {count} ({count/len(labels)*100:.2f}%)")
         print(f"总样本数: {len(labels)}")
+        print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
 
         return features, labels
 

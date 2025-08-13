@@ -22,7 +22,7 @@ class Config:
     RANDOM_STATE = 42
     BATCH_SIZE = 8
     LEARNING_RATE = 0.001
-    NUM_EPOCHS = 80
+    NUM_EPOCHS = 280
     
     # 模型相关
     HIDDEN_SIZE = 64  # MLP隐藏层大小

@@ -19,6 +19,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 from models.mlp import MLP  # 从models包中导入MLP类
 from configs.MFCC_config import MFCCConfig
 from datasets.BaseDataset import BaseDataset
+from trainer.evaluate_detailed import evaluate_model_detailed
 
 
 # 配置参数 - 集中管理所有可配置项
@@ -145,9 +146,6 @@ class SpanishDataset(BaseDataset):
         return features, labels
 
 
-
-
-
 # 训练和评估函数（适配二分类指标）
 def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, optimizer, config):
     train_losses = []
@@ -204,7 +202,7 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
         val_accuracies.append(val_acc)
 
         # 测试集指标（每个epoch都评估）
-        test_metrics = evaluate_model_detailed(model, test_loader, verbose=False)
+        test_metrics = evaluate_model_detailed(model, test_loader,num_classes=len(Config.CLASS_NAMES), class_names=Config.CLASS_NAMES, verbose=False)
         test_metrics_per_epoch.append(test_metrics)
         test_accuracies.append(test_metrics['accuracy'])
 
@@ -217,7 +215,7 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
 
     # 最终测试评估（详细输出）
     print("\n最终测试集评估:")
-    final_test_metrics = evaluate_model_detailed(model, test_loader, verbose=True)
+    final_test_metrics = evaluate_model_detailed(model, test_loader,num_classes=len(Config.CLASS_NAMES), class_names=Config.CLASS_NAMES, verbose=True)
 
     return {
         "train_losses": train_losses,
@@ -231,77 +229,6 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
     }
 
 
-# 详细评估函数（适配二分类，计算所有要求指标）
-def evaluate_model_detailed(model, data_loader, verbose=False):
-    model.eval()
-    y_pred = []
-    y_true = []
-    y_scores = []  # 用于计算AUC的概率值
-
-    with torch.no_grad():
-        for inputs, targets in data_loader:
-            outputs = model(inputs)
-            _, predicted = torch.max(outputs, 1)
-            y_pred.extend(predicted.tolist())
-            y_true.extend(targets.tolist())
-            # 提取正类（标签1）的概率作为分数
-            y_scores.extend(torch.softmax(outputs, dim=1)[:, 1].tolist())
-
-    # 计算整体指标
-    accuracy = accuracy_score(y_true, y_pred) * 100
-    
-    # 二分类混淆矩阵（TN, FP, FN, TP）
-    cm = confusion_matrix(y_true, y_pred)
-    if cm.shape != (2, 2):
-        # 处理可能的单类情况（补全为2x2矩阵）
-        cm = np.pad(cm, ((0, max(0, 2-cm.shape[0])), (0, max(0, 2-cm.shape[1]))), mode='constant')
-    tn, fp, fn, tp = cm.ravel()
-
-    # 计算二分类特有指标
-    sensitivity = tp / (tp + fn) if (tp + fn) > 0 else 0  # 召回率（对正类）
-    specificity = tn / (tn + fp) if (tn + fp) > 0 else 0  # 特异性（对负类）
-    f1_score_val = f1_score(y_true, y_pred)
-    try:
-        auc = roc_auc_score(y_true, y_scores)
-    except:
-        auc = 0.0  # 处理只有一类的极端情况
-
-    # 计算每个类别的样本量
-    actual_healthy = np.sum(np.array(y_true) == 0)  # 0: Healthy
-    actual_patients = np.sum(np.array(y_true) == 1)  # 1: Disorder
-    predicted_healthy = np.sum(np.array(y_pred) == 0)
-    predicted_patients = np.sum(np.array(y_pred) == 1)
-    total_samples = len(y_true)
-
-    if verbose:
-        print(f"准确率: {accuracy:.2f}%")
-        print(f"Sensitivity (Recall for Disorder): {sensitivity:.4f}")
-        print(f"Specificity (Recall for Healthy): {specificity:.4f}")
-        print(f"F1分数: {f1_score_val:.4f}")
-        print(f"AUC: {auc:.4f}")
-        print(f"混淆矩阵: [[TN={tn}, FP={fp}], [FN={fn}, TP={tp}]]")
-        print(f"实际样本数 - {Config.CLASS_NAMES[0]}: {actual_healthy}, {Config.CLASS_NAMES[1]}: {actual_patients}")
-        print(f"预测样本数 - {Config.CLASS_NAMES[0]}: {predicted_healthy}, {Config.CLASS_NAMES[1]}: {predicted_patients}")
-
-    return {
-        "accuracy": accuracy,
-        "sensitivity": sensitivity,
-        "specificity": specificity,
-        "f1_score": f1_score_val,
-        "auc": auc,
-        "tn": tn,
-        "fp": fp,
-        "fn": fn,
-        "tp": tp,
-        "actual_healthy": actual_healthy,
-        "actual_patients": actual_patients,
-        "predicted_healthy": predicted_healthy,
-        "predicted_patients": predicted_patients,
-        "total_samples": total_samples,
-        "y_true": y_true,
-        "y_pred": y_pred,
-        "confusion_matrix": cm
-    }
 
 
 # 绘制混淆矩阵（复用调整）

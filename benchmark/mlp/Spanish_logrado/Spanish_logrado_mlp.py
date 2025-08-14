@@ -17,6 +17,7 @@ from tqdm import tqdm
 # 添加tools目录到Python路径（确保能找到models包）
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 from models.mlp import MLP  # 从models包中导入MLP类
+from configs.MFCC_config import MFCCConfig
 
 
 # 配置参数 - 集中管理所有可配置项
@@ -45,15 +46,7 @@ class Config:
     CONFUSION_MATRIX_FILENAME = "spanish_confusion_matrix.png"
 
 
-# MFCC 参数设置（与数据集采样率保持一致）
-class MFCCConfig:
-    n_mfcc = 13
-    sr = 16000  # 数据集采样率为16kHz
-    n_fft = 2048
-    hop_length = 512
-    n_mels = 128
-    fmin = 0
-    fmax = 8000  # 采样率的一半
+
 
 
 # 基础数据集类（复用）

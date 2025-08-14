@@ -21,6 +21,7 @@ from configs.MFCC_config import MFCCConfig
 from datasets.BaseDataset import BaseDataset
 from trainer.evaluate_detailed import evaluate_model_detailed
 from trainer.train_and_evaluate import train_and_evaluate
+from utils.save_results import save_results
 
 
 # 配置参数 - 集中管理所有可配置项
@@ -145,128 +146,6 @@ class SpanishDataset(BaseDataset):
         print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
 
         return features, labels
-
-
-
-# 绘制混淆矩阵（复用调整）
-def plot_confusion_matrix(cm, class_names, save_path):
-    plt.figure(figsize=(8, 6))
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title('Confusion Matrix')
-    plt.colorbar()
-    tick_marks = np.arange(len(class_names))
-    plt.xticks(tick_marks, class_names, rotation=45)
-    plt.yticks(tick_marks, class_names)
-
-    # 在混淆矩阵中标记数值
-    thresh = cm.max() / 2.
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            plt.text(j, i, format(cm[i, j], 'd'),
-                    horizontalalignment="center",
-                    color="white" if cm[i, j] > thresh else "black")
-
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-    plt.tight_layout()
-    plt.savefig(save_path, dpi=300, bbox_inches="tight")
-    plt.close()
-
-
-# 结果保存函数（适配二分类指标存储）
-def save_results(metrics, config):
-    os.makedirs(config.OUTPUT_DIR, exist_ok=True)
-
-    # 绘制训练曲线 - 损失和准确率
-    plt.figure(figsize=(14, 10))
-    
-    # 损失曲线
-    plt.subplot(2, 2, 1)
-    plt.plot(metrics["train_losses"], label="Training Loss")
-    plt.plot(metrics["val_losses"], label="Validation Loss")
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.title("Training vs Validation Loss")
-    plt.legend()
-
-    # 准确率曲线
-    plt.subplot(2, 2, 2)
-    plt.plot(metrics["train_accuracies"], label="Training Accuracy")
-    plt.plot(metrics["val_accuracies"], label="Validation Accuracy")
-    plt.plot(metrics["test_accuracies"], label="Test Accuracy")
-    plt.xlabel("Epoch")
-    plt.ylabel("Accuracy (%)")
-    plt.title("Accuracy Curves")
-    plt.legend()
-
-    # 混淆矩阵
-    cm = metrics["final_test_metrics"]["confusion_matrix"]
-    plt.subplot(2, 2, 3)
-    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    plt.title('Final Test Set Confusion Matrix')
-    plt.colorbar()
-    tick_marks = np.arange(len(metrics["class_names"]))
-    plt.xticks(tick_marks, metrics["class_names"], rotation=45)
-    plt.yticks(tick_marks, metrics["class_names"])
-    plt.ylabel('True label')
-    plt.xlabel('Predicted label')
-
-    # F1和AUC曲线
-    plt.subplot(2, 2, 4)
-    f1_scores = [m["f1_score"] for m in metrics["test_metrics_per_epoch"]]
-    auc_scores = [m["auc"] for m in metrics["test_metrics_per_epoch"]]
-    plt.plot(f1_scores, label="Test F1 Score")
-    plt.plot(auc_scores, label="Test AUC")
-    plt.xlabel("Epoch")
-    plt.ylabel("Score")
-    plt.title("F1 and AUC Curves")
-    plt.legend()
-
-    plot_path = os.path.join(config.OUTPUT_DIR, config.PLOT_FILENAME)
-    plt.tight_layout()
-    plt.savefig(plot_path, dpi=300, bbox_inches="tight")
-    plt.close()
-    print(f"训练曲线和评估图表已保存至: {plot_path}")
-
-    # 单独保存混淆矩阵
-    cm_path = os.path.join(config.OUTPUT_DIR, config.CONFUSION_MATRIX_FILENAME)
-    plot_confusion_matrix(cm, metrics["class_names"], cm_path)
-    print(f"混淆矩阵已保存至: {cm_path}")
-
-    # 保存详细指标（包含所有要求的字段）
-    metrics_path = os.path.join(config.OUTPUT_DIR, config.METRICS_FILENAME)
-    with open(metrics_path, "w") as f:
-        # 写入表头
-        f.write("Epoch\tTrain Loss\tVal Loss\tTrain Accuracy(%)\tVal Accuracy(%)\tTest Accuracy(%)\t")
-        f.write("Sensitivity\tSpecificity\tF1 Score\tAUC\tTP\tTN\tFP\tFN\tTotal Samples\t")
-        f.write("Actual Healthy\tActual Patients\tPredicted Healthy\tPredicted Patients\n")
-        
-        # 写入每个epoch的指标
-        for i in range(len(metrics["train_losses"])):
-            test = metrics["test_metrics_per_epoch"][i]
-            f.write(f"{i+1}\t")
-            f.write(f"{metrics['train_losses'][i]:.4f}\t{metrics['val_losses'][i]:.4f}\t")
-            f.write(f"{metrics['train_accuracies'][i]:.2f}\t{metrics['val_accuracies'][i]:.2f}\t{test['accuracy']:.2f}\t")
-            f.write(f"{test['sensitivity']:.4f}\t{test['specificity']:.4f}\t{test['f1_score']:.4f}\t{test['auc']:.4f}\t")
-            f.write(f"{test['tp']}\t{test['tn']}\t{test['fp']}\t{test['fn']}\t{test['total_samples']}\t")
-            f.write(f"{test['actual_healthy']}\t{test['actual_patients']}\t{test['predicted_healthy']}\t{test['predicted_patients']}\n")
-
-        # 写入最终测试集指标（汇总）
-        f.write("\n===== Final Test Set Metrics Summary =====\n")
-        final = metrics["final_test_metrics"]
-        f.write(f"Overall Accuracy: {final['accuracy']:.2f}%\n")
-        f.write(f"Sensitivity (Recall for {Config.CLASS_NAMES[1]}): {final['sensitivity']:.4f}\n")
-        f.write(f"Specificity (Recall for {Config.CLASS_NAMES[0]}): {final['specificity']:.4f}\n")
-        f.write(f"F1 Score: {final['f1_score']:.4f}\n")
-        f.write(f"AUC: {final['auc']:.4f}\n\n")
-
-        # 混淆矩阵详情
-        f.write("Confusion Matrix:\n")
-        f.write(f"\tPredicted {Config.CLASS_NAMES[0]}\tPredicted {Config.CLASS_NAMES[1]}\n")
-        f.write(f"Actual {Config.CLASS_NAMES[0]}\t{final['tn']}\t{final['fp']}\n")
-        f.write(f"Actual {Config.CLASS_NAMES[1]}\t{final['fn']}\t{final['tp']}\n")
-
-    print(f"详细指标已保存至: {metrics_path}")
 
 
 def main():

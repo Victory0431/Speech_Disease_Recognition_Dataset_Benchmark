@@ -18,6 +18,7 @@ from tqdm import tqdm
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 from models.mlp import MLP  # 从models包中导入MLP类
 from configs.MFCC_config import MFCCConfig
+from datasets.BaseDataset import BaseDataset
 
 
 # 配置参数 - 集中管理所有可配置项
@@ -44,23 +45,6 @@ class Config:
     PLOT_FILENAME = "spanish_training_metrics.png"
     METRICS_FILENAME = "spanish_training_metrics_detailed.txt"
     CONFUSION_MATRIX_FILENAME = "spanish_confusion_matrix.png"
-
-
-
-
-
-# 基础数据集类（复用）
-class BaseDataset(Dataset):
-    def __init__(self, features, labels):
-        self.features = features
-        self.labels = labels
-
-    def __len__(self):
-        return len(self.features)
-
-    def __getitem__(self, idx):
-        return torch.tensor(self.features[idx], dtype=torch.float32), \
-               torch.tensor(self.labels[idx], dtype=torch.long)
 
 
 # 西班牙语语音障碍数据集类（适配二分类和WAV文件）

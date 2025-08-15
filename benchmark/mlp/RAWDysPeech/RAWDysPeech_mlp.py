@@ -49,11 +49,11 @@ class Config:
     METRICS_FILENAME = "rawdyspreech_training_metrics_detailed.txt"
     CONFUSION_MATRIX_FILENAME = "rawdyspreech_confusion_matrix.png"
 
-# RAWDysPeech数据集类（适配二分类和WAV文件）
+# RAWDysPeech数据集类（适配二分类和WAV文件，多线程加速）
 class RAWDysPeechDataset(BaseDataset):
     @classmethod
     def load_data(cls, root_dir):
-        """加载RAWDysPeech语音疾病数据集"""
+        """加载RAWDysPeech语音疾病数据集，使用多线程加速处理"""
         # 收集所有文件路径和对应的标签
         file_list = []
         
@@ -72,14 +72,11 @@ class RAWDysPeechDataset(BaseDataset):
         if not file_list:
             raise ValueError("未找到任何WAV文件，请检查目录结构和路径")
             
-        print(f"发现 {len(file_list)} 个音频文件，开始处理...")
+        print(f"发现 {len(file_list)} 个音频文件，开始多线程处理...")
         
-        features = []
-        labels = []
-        errors = []
-        
-        # 逐个处理文件
-        for file_path, label in tqdm(file_list, desc="Processing audio files"):
+        # 定义单个文件的处理函数
+        def process_file(file_info):
+            file_path, label = file_info
             filename = os.path.basename(file_path)
             try:
                 # 读取音频文件（WAV格式）
@@ -108,11 +105,35 @@ class RAWDysPeechDataset(BaseDataset):
                 
                 # 合并特征
                 features_combined = np.concatenate([mfccs_mean, mfccs_std, mfccs_max, mfccs_min])
-                features.append(features_combined)
-                labels.append(label)
+                return (features_combined, label, None)
                 
             except Exception as e:
-                errors.append(f"处理 {filename} 时出错: {str(e)}")
+                return (None, None, f"处理 {filename} 时出错: {str(e)}")
+        
+        # 使用多线程处理文件
+        features = []
+        labels = []
+        errors = []
+        
+        # 根据CPU核心数自动调整线程数，通常设置为CPU核心数的2-4倍
+        import concurrent.futures
+        max_workers = min(64, os.cpu_count() * 4)  # 限制最大线程数为32
+        print(f"使用 {max_workers} 个线程进行并行处理...")
+        
+        # 使用线程池执行任务
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有任务并获取未来对象
+            futures = [executor.submit(process_file, file_info) for file_info in file_list]
+            
+            # 显示进度
+            for future in tqdm(concurrent.futures.as_completed(futures), 
+                             total=len(futures), desc="Processing audio files"):
+                feature, label, error = future.result()
+                if error:
+                    errors.append(error)
+                else:
+                    features.append(feature)
+                    labels.append(label)
         
         # 打印错误信息
         if errors:
@@ -138,6 +159,7 @@ class RAWDysPeechDataset(BaseDataset):
         print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
         
         return features, labels
+    
 
 def main():
     # 加载配置

@@ -49,11 +49,11 @@ class Config:
     METRICS_FILENAME = "icbhi_training_metrics_detailed.txt"
     CONFUSION_MATRIX_FILENAME = "icbhi_confusion_matrix.png"
 
-# ICBHI数据集类（适配多分类和WAV文件，过滤低占比类别）
+# ICBHI数据集类（适配多分类和WAV文件，平衡COPD类别数量）
 class ICBHIDataset(BaseDataset):
     @classmethod
     def load_data(cls, root_dir):
-        """加载ICBHI数据集，过滤掉占比低于2%的类别"""
+        """加载ICBHI数据集，过滤低占比类别并将COPD样本限制为50个左右"""
         # 标签文件的固定路径
         label_file_path = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mlp/ICBHI/number_label.txt"
         
@@ -123,14 +123,34 @@ class ICBHIDataset(BaseDataset):
         if not Config.CLASS_NAMES:
             raise ValueError("没有类别满足占比 >= 2%的条件，无法继续处理")
         
-        # 第二遍筛选：只保留符合条件的文件
-        file_list = []
+        # 分离COPD和其他类别，限制COPD数量为50个左右
+        copd_files = []
+        other_files = []
+        target_copd_count = 50  # 目标COPD样本数量
+        
         for file_path, label_name in raw_file_list:
             if label_name in Config.CLASS_NAMES:
-                label = Config.CLASS_NAMES.index(label_name)
-                file_list.append((file_path, label))
+                if label_name == "COPD":
+                    copd_files.append((file_path, label_name))
+                else:
+                    other_files.append((file_path, label_name))
         
-        print(f"筛选后保留 {len(file_list)} 个带有有效标签的音频文件，开始处理...")
+        # 随机选择目标数量的COPD样本（保证随机性）
+        import random
+        random.seed(Config.RANDOM_STATE)  # 固定随机种子，保证结果可复现
+        selected_copd = random.sample(copd_files, min(target_copd_count, len(copd_files)))
+        
+        # 合并并创建最终文件列表
+        balanced_file_list = selected_copd + other_files
+        
+        # 转换为标签索引
+        file_list = []
+        for file_path, label_name in balanced_file_list:
+            label = Config.CLASS_NAMES.index(label_name)
+            file_list.append((file_path, label))
+        
+        print(f"\nCOPD类别已从 {len(copd_files)} 个样本筛选为 {len(selected_copd)} 个样本")
+        print(f"平衡后总样本数: {len(file_list)} 个带有有效标签的音频文件，开始处理...")
         
         features = []
         labels = []
@@ -187,7 +207,7 @@ class ICBHIDataset(BaseDataset):
         features = np.array(features)
         labels = np.array(labels)
         
-        # 打印筛选后的数据集统计信息
+        # 打印平衡后的数据集统计信息
         print(f"\n数据集加载完成 - 特征形状: {features.shape}")
         for i, class_name in enumerate(Config.CLASS_NAMES):
             count = np.sum(labels == i)
@@ -196,6 +216,7 @@ class ICBHIDataset(BaseDataset):
         print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
         
         return features, labels
+    
     
 
 def main():

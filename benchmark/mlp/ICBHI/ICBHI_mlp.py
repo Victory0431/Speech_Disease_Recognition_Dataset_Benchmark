@@ -49,11 +49,11 @@ class Config:
     METRICS_FILENAME = "icbhi_training_metrics_detailed.txt"
     CONFUSION_MATRIX_FILENAME = "icbhi_confusion_matrix.png"
 
-# ICBHI数据集类（适配多分类和WAV文件）
+# ICBHI数据集类（适配多分类和WAV文件，过滤低占比类别）
 class ICBHIDataset(BaseDataset):
     @classmethod
     def load_data(cls, root_dir):
-        """加载ICBHI数据集，使用指定的标签文件"""
+        """加载ICBHI数据集，过滤掉占比低于2%的类别"""
         # 标签文件的固定路径
         label_file_path = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mlp/ICBHI/number_label.txt"
         
@@ -80,36 +80,57 @@ class ICBHIDataset(BaseDataset):
         print(f"成功加载标签映射，共 {len(label_map)} 个样本标签")
         print(f"数据集中发现的标签类别: {sorted(all_labels)}")
         
-        # 动态更新配置中的类别列表
-        Config.CLASS_NAMES = sorted(all_labels)
-        print(f"已更新配置类别为: {Config.CLASS_NAMES}")
-        
         # 收集所有WAV文件路径（在root_dir中）
         wav_files = [f for f in os.listdir(root_dir) if f.lower().endswith('.wav')]
         if not wav_files:
             raise ValueError(f"在 {root_dir} 中未找到任何WAV文件，请检查目录结构和路径")
         
-        # 准备文件列表和对应标签
-        file_list = []
+        # 第一遍遍历：收集所有有效的(文件路径, 标签名称)对
+        raw_file_list = []
         for filename in wav_files:
-            # 从文件名提取样本编号（如从"101_1b1_Al_sc_Meditron.wav"中提取"101"）
             sample_id = filename.split('_')[0]
             if sample_id in label_map:
                 label_name = label_map[sample_id]
-                # 将标签名称转换为数字索引（使用更新后的CLASS_NAMES）
-                if label_name in Config.CLASS_NAMES:
-                    label = Config.CLASS_NAMES.index(label_name)
-                    file_path = os.path.join(root_dir, filename)
-                    file_list.append((file_path, label))
-                else:
-                    print(f"警告: 未知标签 '{label_name}' 在文件 {filename} 中，已跳过")
+                file_path = os.path.join(root_dir, filename)
+                raw_file_list.append((file_path, label_name))
             else:
                 print(f"警告: 样本编号 '{sample_id}' 在标签文件中未找到对应标签，文件 {filename} 已跳过")
         
-        if not file_list:
+        if not raw_file_list:
             raise ValueError("未找到任何带有有效标签的WAV文件，请检查标签文件和音频文件是否匹配")
         
-        print(f"发现 {len(file_list)} 个带有有效标签的音频文件，开始处理...")
+        # 统计各类别数量，确定需要保留的类别（占比 >= 2%）
+        all_label_names = [label for _, label in raw_file_list]
+        total_samples = len(all_label_names)
+        label_counts = {}
+        for label in all_label_names:
+            label_counts[label] = label_counts.get(label, 0) + 1
+        
+        # 计算各类别占比并筛选
+        print("\n原始类别分布:")
+        keep_labels = []
+        for label, count in sorted(label_counts.items()):
+            ratio = count / total_samples * 100
+            print(f"{label}: {count} 样本 ({ratio:.2f}%)")
+            if ratio >= 2.0:  # 保留占比 >= 2%的类别
+                keep_labels.append(label)
+        
+        # 更新配置中的类别列表
+        Config.CLASS_NAMES = sorted(keep_labels)
+        print(f"\n保留的类别（占比 >= 2%）: {Config.CLASS_NAMES}")
+        print(f"已删除 {len(label_counts) - len(Config.CLASS_NAMES)} 个低占比类别")
+        
+        if not Config.CLASS_NAMES:
+            raise ValueError("没有类别满足占比 >= 2%的条件，无法继续处理")
+        
+        # 第二遍筛选：只保留符合条件的文件
+        file_list = []
+        for file_path, label_name in raw_file_list:
+            if label_name in Config.CLASS_NAMES:
+                label = Config.CLASS_NAMES.index(label_name)
+                file_list.append((file_path, label))
+        
+        print(f"筛选后保留 {len(file_list)} 个带有有效标签的音频文件，开始处理...")
         
         features = []
         labels = []
@@ -166,7 +187,7 @@ class ICBHIDataset(BaseDataset):
         features = np.array(features)
         labels = np.array(labels)
         
-        # 打印数据集统计信息
+        # 打印筛选后的数据集统计信息
         print(f"\n数据集加载完成 - 特征形状: {features.shape}")
         for i, class_name in enumerate(Config.CLASS_NAMES):
             count = np.sum(labels == i)
@@ -175,6 +196,7 @@ class ICBHIDataset(BaseDataset):
         print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
         
         return features, labels
+    
 
 def main():
     # 加载配置

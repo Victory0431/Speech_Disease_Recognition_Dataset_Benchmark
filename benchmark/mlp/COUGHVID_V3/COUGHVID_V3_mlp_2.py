@@ -41,7 +41,7 @@ class Config:
     CLASS_WEIGHTS = [1.0, 1.0, 1.0]  # 初始值，可根据实际样本比例调整
 
     # 模型相关
-    HIDDEN_SIZE = 64   # 三分类任务增大隐藏层规模
+    HIDDEN_SIZE = 128   # 三分类任务增大隐藏层规模
 
     # 输出相关
     OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -113,11 +113,11 @@ def process_audio(file_info, mfcc_config):
         result["error"] = f"处理 {filename} 时出错: {str(e)}"
     return result
 
-# COUGHVID数据集类（适配三分类和WAV文件，多线程加载）
+# COUGHVID数据集类（适配三分类和WAV文件，多线程加载+类别平衡）
 class CoughvidDataset(BaseDataset):
     @classmethod
-    def load_data(cls, root_dir):
-        """加载COUGHVID数据集（多线程版）"""
+    def load_data(cls, root_dir, max_healthy_samples=2000):
+        """加载COUGHVID数据集（多线程版）并平衡健康类别样本"""
         # 收集所有文件路径和对应的标签
         file_list = []
         
@@ -189,15 +189,49 @@ class CoughvidDataset(BaseDataset):
         features = np.array(features)
         labels = np.array(labels)
         
-        # 打印数据集统计信息
-        print(f"\n数据集加载完成 - 特征形状: {features.shape}")
+        # 平衡健康类别样本（标签1）
+        healthy_mask = labels == 1
+        other_mask = labels != 1
+        
+        # 分离健康样本和其他样本
+        healthy_features = features[healthy_mask]
+        healthy_labels = labels[healthy_mask]
+        other_features = features[other_mask]
+        other_labels = labels[other_mask]
+        
+        # 对健康样本进行抽样（不超过max_healthy_samples）
+        if len(healthy_features) > max_healthy_samples:
+            # 随机选择max_healthy_samples个样本
+            np.random.seed(Config.RANDOM_STATE)  # 固定随机种子，保证结果可复现
+            sample_indices = np.random.choice(
+                len(healthy_features), 
+                size=max_healthy_samples, 
+                replace=False
+            )
+            sampled_healthy_features = healthy_features[sample_indices]
+            sampled_healthy_labels = healthy_labels[sample_indices]
+            
+            print(f"\n健康类别本过多（{len(healthy_features)}个），已随机抽样至{max_healthy_samples}个")
+        else:
+            # 健康本数量不足，全部保留
+            sampled_healthy_features = healthy_features
+            sampled_healthy_labels = healthy_labels
+            print(f"\n健康类别样本数量为{len(healthy_features)}个，无需抽样")
+        
+        # 合并处理后的样本
+        balanced_features = np.vstack([other_features, sampled_healthy_features])
+        balanced_labels = np.hstack([other_labels, sampled_healthy_labels])
+        
+        # 打印平衡衡后的数据集统计信息
+        print(f"\n数据集平衡衡完成 - 特征形状: {balanced_features.shape}")
         for i, class_name in enumerate(Config.CLASS_NAMES):
-            count = np.sum(labels == i)
-            print(f"{class_name} 样本数 ({i}): {count} ({count/len(labels)*100:.2f}%)")
-        print(f"总样本数: {len(labels)}")
+            count = np.sum(balanced_labels == i)
+            print(f"{class_name} 样本数 ({i}): {count} ({count/len(balanced_labels)*100:.2f}%)")
+        print(f"平衡后总样本数: {len(balanced_labels)}")
         print(f"处理成功率: {len(features)/valid_files_count*100:.2f}%")
         
-        return features, labels
+        return balanced_features, balanced_labels
+
 
 def main():
     # 加载配置

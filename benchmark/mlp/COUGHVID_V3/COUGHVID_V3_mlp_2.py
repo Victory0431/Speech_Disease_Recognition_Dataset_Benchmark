@@ -1,4 +1,3 @@
-# 导入自定义的MLP模型
 import sys
 from pathlib import Path
 import os
@@ -49,6 +48,20 @@ class Config:
     METRICS_FILENAME = "coughvid_training_metrics_detailed.txt"
     CONFUSION_MATRIX_FILENAME = "coughvid_confusion_matrix.png"
 
+# 检查音频文件是否有效
+def is_valid_audio(file_path):
+    try:
+        # 尝试读取音频文件头部信息，判断是否有效
+        with open(file_path, 'rb') as f:
+            header = f.read(12)
+            # WAV文件以'RIFF'开头，且有后续格式标识
+            if len(header) >= 12 and header[:4] == b'RIFF' and header[8:12] in (b'WAVE', b'AVI '):
+                return True
+            else:
+                return False
+    except:
+        return False
+
 # COUGHVID数据集类（适配三分类和WAV文件）
 class CoughvidDataset(BaseDataset):
     @classmethod
@@ -86,11 +99,19 @@ class CoughvidDataset(BaseDataset):
         
         features = []
         labels = []
+        valid_files_count = 0
+        invalid_files_count = 0
         errors = []
         
         # 逐个处理文件
         for file_path, label in tqdm(file_list, desc="Processing audio files"):
             filename = os.path.basename(file_path)
+            # 检查音频文件是否有效
+            if not is_valid_audio(file_path):
+                invalid_files_count += 1
+                errors.append(f"文件 {filename} 无效，跳过处理")
+                continue
+            valid_files_count += 1
             try:
                 # 读取音频文件（WAV格式）
                 signal, _ = librosa.load(
@@ -132,6 +153,10 @@ class CoughvidDataset(BaseDataset):
             if len(errors) > 10:
                 print(f"... 还有 {len(errors)-10} 个错误未显示")
         
+        # 打印有效和无效文件数量
+        print(f"\n有效音频文件数量: {valid_files_count}")
+        print(f"无效音频文件数量: {invalid_files_count}")
+        
         # 验证数据加载结果
         if len(features) == 0:
             raise ValueError("未加载到任何有效数据，请检查数据格式和路径")
@@ -145,7 +170,7 @@ class CoughvidDataset(BaseDataset):
             count = np.sum(labels == i)
             print(f"{class_name} 样本数 ({i}): {count} ({count/len(labels)*100:.2f}%)")
         print(f"总样本数: {len(labels)}")
-        print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
+        print(f"处理成功率: {len(features)/valid_files_count*100:.2f}%")
         
         return features, labels
 
@@ -240,4 +265,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

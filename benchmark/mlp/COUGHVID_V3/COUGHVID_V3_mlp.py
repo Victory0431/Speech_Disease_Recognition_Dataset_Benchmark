@@ -24,6 +24,15 @@ from trainer.evaluate_detailed import evaluate_model_detailed
 from trainer.train_and_evaluate import train_and_evaluate
 from utils.save_results import save_results
 
+
+# 数据集加载完成 - 特征形状: (20664, 52)
+# COVID-19 样本数 (0): 1315 (6.36%)
+# healthy 样本数 (1): 15476 (74.89%)
+# symptomatic 样本数 (2): 3873 (18.74%)
+# 总样本数: 20664
+# 处理成功率: 100.00%
+
+
 # 配置参数 - 集中管理所有可配置项
 class Config:
     # 数据相关

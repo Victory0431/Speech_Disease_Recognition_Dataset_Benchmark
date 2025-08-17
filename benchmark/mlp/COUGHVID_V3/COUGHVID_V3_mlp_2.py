@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import librosa
 from imblearn.over_sampling import SMOTE
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 # 添加tools目录到Python路径（确保能找到models包）
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
@@ -48,6 +49,9 @@ class Config:
     METRICS_FILENAME = "coughvid_training_metrics_detailed.txt"
     CONFUSION_MATRIX_FILENAME = "coughvid_confusion_matrix.png"
 
+    # 多线程相关
+    NUM_WORKERS = 64  # 线程数量，可根据CPU核心数调整
+
 # 检查音频文件是否有效
 def is_valid_audio(file_path):
     try:
@@ -62,11 +66,58 @@ def is_valid_audio(file_path):
     except:
         return False
 
-# COUGHVID数据集类（适配三分类和WAV文件）
+# 处理单个音频文件的函数，供多线程调用
+def process_audio(file_info, mfcc_config):
+    file_path, label = file_info
+    filename = os.path.basename(file_path)
+    result = {
+        "features": None,
+        "label": label,
+        "error": None,
+        "is_valid": False
+    }
+    # 检查音频文件是否有效
+    if not is_valid_audio(file_path):
+        result["error"] = f"文件 {filename} 无效，跳过处理"
+        return result
+    result["is_valid"] = True
+    try:
+        # 读取音频文件（WAV格式）
+        signal, _ = librosa.load(
+            file_path, 
+            sr=mfcc_config.sr
+        )
+        
+        # 提取MFCC特征
+        mfccs = librosa.feature.mfcc(
+            y=signal,
+            sr=mfcc_config.sr,
+            n_mfcc=mfcc_config.n_mfcc,
+            n_fft=mfcc_config.n_fft,
+            hop_length=mfcc_config.hop_length,
+            n_mels=mfcc_config.n_mels,
+            fmin=mfcc_config.fmin,
+            fmax=mfcc_config.fmax
+        )
+        
+        # 计算MFCC的统计特征（均值、标准差、最大值、最小值）
+        mfccs_mean = np.mean(mfccs, axis=1)
+        mfccs_std = np.std(mfccs, axis=1)
+        mfccs_max = np.max(mfccs, axis=1)
+        mfccs_min = np.min(mfccs, axis=1)
+        
+        # 合并特征
+        features_combined = np.concatenate([mfccs_mean, mfccs_std, mfccs_max, mfccs_min])
+        result["features"] = features_combined
+    except Exception as e:
+        result["error"] = f"处理 {filename} 时出错: {str(e)}"
+    return result
+
+# COUGHVID数据集类（适配三分类和WAV文件，多线程加载）
 class CoughvidDataset(BaseDataset):
     @classmethod
     def load_data(cls, root_dir):
-        """加载COUGHVID数据集"""
+        """加载COUGHVID数据集（多线程版）"""
         # 收集所有文件路径和对应的标签
         file_list = []
         
@@ -95,7 +146,7 @@ class CoughvidDataset(BaseDataset):
         if not file_list:
             raise ValueError("未找到任何WAV文件，请检查目录结构和路径")
             
-        print(f"发现 {len(file_list)} 个音频文件，开始处理...")
+        print(f"发现 {len(file_list)} 个音频文件，开始多线程处理...")
         
         features = []
         labels = []
@@ -103,47 +154,21 @@ class CoughvidDataset(BaseDataset):
         invalid_files_count = 0
         errors = []
         
-        # 逐个处理文件
-        for file_path, label in tqdm(file_list, desc="Processing audio files"):
-            filename = os.path.basename(file_path)
-            # 检查音频文件是否有效
-            if not is_valid_audio(file_path):
-                invalid_files_count += 1
-                errors.append(f"文件 {filename} 无效，跳过处理")
-                continue
-            valid_files_count += 1
-            try:
-                # 读取音频文件（WAV格式）
-                signal, _ = librosa.load(
-                    file_path, 
-                    sr=MFCCConfig.sr
-                )
-                
-                # 提取MFCC特征
-                mfccs = librosa.feature.mfcc(
-                    y=signal,
-                    sr=MFCCConfig.sr,
-                    n_mfcc=MFCCConfig.n_mfcc,
-                    n_fft=MFCCConfig.n_fft,
-                    hop_length=MFCCConfig.hop_length,
-                    n_mels=MFCCConfig.n_mels,
-                    fmin=MFCCConfig.fmin,
-                    fmax=MFCCConfig.fmax
-                )
-                
-                # 计算MFCC的统计特征（均值、标准差、最大值、最小值）
-                mfccs_mean = np.mean(mfccs, axis=1)
-                mfccs_std = np.std(mfccs, axis=1)
-                mfccs_max = np.max(mfccs, axis=1)
-                mfccs_min = np.min(mfccs, axis=1)
-                
-                # 合并特征
-                features_combined = np.concatenate([mfccs_mean, mfccs_std, mfccs_max, mfccs_min])
-                features.append(features_combined)
-                labels.append(label)
-                
-            except Exception as e:
-                errors.append(f"处理 {filename} 时出错: {str(e)}")
+        # 使用线程池进行多线程处理
+        with ThreadPoolExecutor(max_workers=Config.NUM_WORKERS) as executor:
+            futures = [executor.submit(process_audio, file_info, MFCCConfig) for file_info in file_list]
+            for future in tqdm(futures, desc="Processing audio files"):
+                result = future.result()
+                if result["is_valid"]:
+                    valid_files_count += 1
+                    if result["features"] is not None:
+                        features.append(result["features"])
+                        labels.append(result["label"])
+                    else:
+                        errors.append(result["error"])
+                else:
+                    invalid_files_count += 1
+                    errors.append(result["error"])
         
         # 打印错误信息
         if errors:

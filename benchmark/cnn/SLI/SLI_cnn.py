@@ -3,6 +3,8 @@ import sys
 from pathlib import Path
 import os
 import numpy as np
+# 指定使用第2张GPU（编号从0开始）
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -19,8 +21,8 @@ sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 from models.cnn import SimpleCNN  # 导入CNN模型
 from configs.MFCC_config import MFCCConfig  # 可以复用此配置中的部分参数
 from datasets.BaseDataset import BaseDataset
-from trainer.evaluate_detailed import evaluate_model_detailed_cnn  # 复用评估函数
-from trainer.train_and_evaluate import train_and_evaluate_cnn  # 复用训练评估函数
+from trainer.evaluate_detailed_cnn import evaluate_model_detailed  # 复用评估函数
+from trainer.train_and_evaluate_cnn import train_and_evaluate  # 复用训练评估函数
 from utils.save_results import save_results  # 复用结果保存函数
 
 # 配置参数
@@ -166,6 +168,11 @@ class SLIDataset(BaseDataset):
     
 
 def main():
+    # 验证GPU设置
+    print(f"CUDA可见设备: {os.environ.get('CUDA_VISIBLE_DEVICES', '未设置')}")
+    print(f"PyTorch可用GPU数量: {torch.cuda.device_count()}")
+    if torch.cuda.is_available():
+        print(f"当前GPU名称: {torch.cuda.get_device_name(0)}")
     # 加载配置
     config = Config()
     print(f"使用数据集类别: {config.CLASS_NAMES}")

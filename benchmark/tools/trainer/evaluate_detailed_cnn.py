@@ -1,4 +1,3 @@
-# /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/tools/trainer/evaluate_detailed.py
 import numpy as np
 import torch
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, roc_auc_score
@@ -6,29 +5,24 @@ from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, roc_auc_
 def evaluate_model_detailed(model, data_loader, num_classes=2, class_names=None, verbose=False, device=None):
     """
     评估模型性能的详细函数，支持二分类和多分类任务
-    
-    参数:
-        model: 训练好的模型
-        data_loader: 数据加载器
-        num_classes: 类别数量（默认2，支持多分类）
-        class_names: 类别名称列表（可选，用于verbose输出）
-        verbose: 是否打印详细评估结果
-        device: 计算设备（CPU/GPU）
+    修复了device参数问题
     """
     model.eval()
     y_pred = []
     y_true = []
     y_scores = []  # 用于计算AUC的概率值
     
-    # 如果未指定设备，则使用模型所在设备
+    # 确定设备
     if device is None:
+        # 如果未指定设备，使用模型所在设备
         device = next(model.parameters()).device
+        print(f"evaluate_model_detailed自动使用设备: {device}")
 
     with torch.no_grad():
         for inputs, targets in data_loader:
-            # 将输入移至正确设备
-            inputs = inputs.to(device)
-            outputs = model(inputs.float())  # 确保输入是float类型
+            # 将输入移至正确设备并转换为float类型
+            inputs = inputs.to(device).float()
+            outputs = model(inputs)
             _, predicted = torch.max(outputs, 1)
             
             # 将结果移回CPU并转换为列表
@@ -141,3 +135,4 @@ def evaluate_model_detailed(model, data_loader, num_classes=2, class_names=None,
         "predicted_healthy": predicted_healthy,
         "predicted_patients": predicted_patients
     }
+    

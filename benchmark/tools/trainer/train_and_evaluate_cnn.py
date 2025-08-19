@@ -1,18 +1,10 @@
 import torch
-from trainer.evaluate_detailed import evaluate_model_detailed
+from trainer.evaluate_detailed_cnn import evaluate_model_detailed
 
 def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, optimizer, config):
     """
     训练并评估模型，适用于MLP和CNN等多种模型类型
-    
-    参数:
-        model: 要训练的模型
-        train_loader: 训练数据加载器
-        val_loader: 验证数据加载器
-        test_loader: 测试数据加载器
-        criterion: 损失函数
-        optimizer: 优化器
-        config: 配置参数对象
+    修复了设备不匹配问题，并支持GPU指定
     """
     train_losses = []
     val_losses = []
@@ -24,7 +16,11 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
     # 检查是否有可用的GPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
+    # 将损失函数也移动到设备上（如果有可学习参数）
+    criterion.to(device)
     print(f"使用设备: {device}")
+    if device.type == 'cuda':
+        print(f"当前使用GPU编号: {torch.cuda.current_device()}")
 
     for epoch in range(config.NUM_EPOCHS):
         # 训练阶段
@@ -35,10 +31,10 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
 
         for inputs, targets in train_loader:
             # 将数据移至设备
-            inputs, targets = inputs.to(device), targets.to(device)
+            inputs, targets = inputs.to(device).float(), targets.to(device)
             
             optimizer.zero_grad()
-            outputs = model(inputs.float())  # 确保输入是float类型
+            outputs = model(inputs)
             loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
@@ -62,8 +58,8 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
 
         with torch.no_grad():
             for inputs, targets in val_loader:
-                inputs, targets = inputs.to(device), targets.to(device)
-                outputs = model(inputs.float())
+                inputs, targets = inputs.to(device).float(), targets.to(device)
+                outputs = model(inputs)
                 loss = criterion(outputs, targets)
                 val_running_loss += loss.item() * inputs.size(0)
 
@@ -83,7 +79,7 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
             num_classes=len(config.CLASS_NAMES), 
             class_names=config.CLASS_NAMES, 
             verbose=False,
-            device=device  # 新增：传递设备参数
+            device=device
         )
         test_metrics_per_epoch.append(test_metrics)
         test_accuracies.append(test_metrics['accuracy'])
@@ -103,7 +99,7 @@ def train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, 
         num_classes=len(config.CLASS_NAMES), 
         class_names=config.CLASS_NAMES, 
         verbose=True,
-        device=device  # 新增：传递设备参数
+        device=device
     )
 
     return {

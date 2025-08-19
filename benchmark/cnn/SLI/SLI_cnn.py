@@ -1,275 +1,239 @@
+# /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/cnn/SLI_cnn.py
+import sys
+from pathlib import Path
 import os
-import librosa
 import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, recall_score, f1_score, roc_auc_score, confusion_matrix
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+import librosa
+import librosa.display
+from imblearn.over_sampling import SMOTE
+from tqdm import tqdm
 
-# 获取当前脚本所在目录作为工作目录
-current_dir = os.path.dirname(os.path.abspath(__file__))
-print(f"工作目录设置为: {current_dir}")
+# 添加tools目录到Python路径
+sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
+from models.cnn import SimpleCNN  # 导入CNN模型
+from configs.MFCC_config import MFCCConfig  # 可以复用此配置中的部分参数
+from datasets.BaseDataset import BaseDataset
+from trainer.evaluate_detailed import evaluate_model_detailed_cnn  # 复用评估函数
+from trainer.train_and_evaluate import train_and_evaluate_cnn  # 复用训练评估函数
+from utils.save_results import save_results  # 复用结果保存函数
 
-# MFCC 参数设置（可根据需求调整）
-n_mfcc = 13  # MFCC 系数阶数
-sr = 16000  # 采样率
-n_fft = 2048  # 傅里叶变换窗口大小
-hop_length = 512  # 帧移
-n_mels = 128  # 梅尔滤波器组数量
-fmin = 0  # 最低频率
-fmax = 8000  # 最高频率
-
-# 定义自定义数据集类
-class AudioDataset(Dataset):
-    def __init__(self, audio_paths, labels):
-        self.audio_paths = audio_paths
-        self.labels = labels
-
-    def __len__(self):
-        return len(self.audio_paths)
-
-    def __getitem__(self, idx):
-        audio_path = self.audio_paths[idx]
-        label = self.labels[idx]
-
-        # 读取音频文件
-        audio_data, _ = librosa.load(audio_path, sr=sr)
-
-        # 提取 MFCC 特征
-        mfccs = librosa.feature.mfcc(
-            y=audio_data,
-            sr=sr,
-            n_mfcc=n_mfcc,
-            n_fft=n_fft,
-            hop_length=hop_length,
-            n_mels=n_mels,
-            fmin=fmin,
-            fmax=fmax
-        )
-
-        # 统计量聚合
-        mfccs_mean = np.mean(mfccs, axis=1)
-
-        return torch.tensor(mfccs_mean, dtype=torch.float32), torch.tensor(label, dtype=torch.long)
-
-# 读取数据目录，构建音频路径和标签列表
-def get_audio_paths_and_labels():
-    healthy_dir = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/SLI_dataset/preprocess_a_data/healthy"
-    patients_dir = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/SLI_dataset/preprocess_a_data/patients"
-
-    healthy_paths = [os.path.join(healthy_dir, f) for f in os.listdir(healthy_dir) if f.endswith(".wav") or f.endswith(".WAV")]
-    patients_paths = [os.path.join(patients_dir, f) for f in os.listdir(patients_dir) if f.endswith(".wav") or f.endswith(".WAV")]
-
-    audio_paths = healthy_paths + patients_paths
-    labels = [0] * len(healthy_paths) + [1] * len(patients_paths)  # 0 表示健康，1 表示疾病
+# 配置参数
+class Config:
+    # 数据相关
+    ROOT_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/SLI_dataset/preprocess_a_data"
+    CLASS_NAMES = ["healthy", "patients"]  # 0: 健康, 1: 疾病
+    TRAIN_RATIO = 0.7
+    VALID_RATIO = 0.15
+    TEST_RATIO = 0.15
     
-    # 打印数据集基本信息
-    print(f"健康样本数: {len(healthy_paths)}")
-    print(f"患者样本数: {len(patients_paths)}")
-    print(f"总样本数: {len(audio_paths)}")
+    # 音频处理相关
+    SAMPLE_RATE = 16000  # 采样率
+    DURATION = 3  # 音频时长（秒）
+    N_MELS = 128  # 梅尔频谱图的梅尔带数量
+    HOP_LENGTH = 512  #  hop长度
+    N_FFT = 2048  # FFT窗口大小
     
-    return audio_paths, labels
+    # 训练相关
+    RANDOM_STATE = 42
+    BATCH_SIZE = 8
+    LEARNING_RATE = 0.001
+    NUM_EPOCHS = 100
+    CLASS_WEIGHTS = [1.0, 1.0]
+    
+    # 输出相关
+    OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+    PLOT_FILENAME = "sli_cnn_training_metrics.png"
+    METRICS_FILENAME = "sli_cnn_training_metrics_detailed.txt"
+    CONFUSION_MATRIX_FILENAME = "sli_cnn_confusion_matrix.png"
 
-# 构建简单的 MLP 模型
-class MLP(nn.Module):
-    def __init__(self, input_dim):
-        super(MLP, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 64)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(64, 2)  # 二分类，输出 2 个类别
 
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.fc2(x)
-        return x
+class SLIDataset(BaseDataset):
+    @classmethod
+    def load_data(cls, root_dir):
+        """加载SLI数据集，将音频转换为梅尔频谱图"""
+        file_list = []
+        
+        # 遍历两个类别文件夹
+        for label, class_name in enumerate(Config.CLASS_NAMES):
+            class_dir = os.path.join(root_dir, class_name)
+            if not os.path.exists(class_dir):
+                raise ValueError(f"类别文件夹不存在: {class_dir}")
+                
+            # 获取该类别下所有WAV文件
+            for filename in os.listdir(class_dir):
+                if filename.lower().endswith('.wav'):
+                    file_path = os.path.join(class_dir, filename)
+                    file_list.append((file_path, label))
+        
+        if not file_list:
+            raise ValueError("未找到任何WAV文件，请检查目录结构和路径")
+            
+        print(f"发现 {len(file_list)} 个音频文件，开始多线程处理...")
+        
+        # 定义单个文件的处理函数
+        def process_file(file_info):
+            file_path, label = file_info
+            filename = os.path.basename(file_path)
+            try:
+                # 读取音频文件
+                signal, sr = librosa.load(
+                    file_path,
+                    sr=Config.SAMPLE_RATE
+                )
+                
+                # 确保音频长度一致
+                target_length = Config.SAMPLE_RATE * Config.DURATION
+                if len(signal) < target_length:
+                    # 短音频补零
+                    signal = np.pad(signal, (0, target_length - len(signal)), mode='constant')
+                else:
+                    # 长音频截断
+                    signal = signal[:target_length]
+                
+                # 计算梅尔频谱图
+                mel_spectrogram = librosa.feature.melspectrogram(
+                    y=signal,
+                    sr=sr,
+                    n_fft=Config.N_FFT,
+                    hop_length=Config.HOP_LENGTH,
+                    n_mels=Config.N_MELS
+                )
+                
+                # 转换为分贝值
+                mel_spectrogram_db = librosa.power_to_db(mel_spectrogram, ref=np.max)
+                
+                # 标准化（每个频谱图独立标准化）
+                mel_spectrogram_db = (mel_spectrogram_db - mel_spectrogram_db.mean()) / (mel_spectrogram_db.std() + 1e-8)
+                
+                return (mel_spectrogram_db, label, None)
+                
+            except Exception as e:
+                return (None, None, f"处理 {filename} 时出错: {str(e)}")
+        
+        # 使用多线程处理文件
+        features = []
+        labels = []
+        errors = []
+        
+        # 线程池设置
+        import concurrent.futures
+        max_workers = min(64, os.cpu_count() * 4)
+        print(f"使用 {max_workers} 个线程进行并行处理...")
+        
+        # 执行并行处理
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(process_file, file_info) for file_info in file_list]
+            
+            for future in tqdm(concurrent.futures.as_completed(futures), 
+                             total=len(futures), desc="Processing audio files"):
+                feature, label, error = future.result()
+                if error:
+                    errors.append(error)
+                else:
+                    features.append(feature)
+                    labels.append(label)
+        
+        # 打印错误信息
+        if errors:
+            print(f"\n处理完成，共 {len(errors)} 个文件处理失败:")
+            for err in errors[:10]:
+                print(err)
+            if len(errors) > 10:
+                print(f"... 还有 {len(errors)-10} 个错误未显示")
+        
+        # 验证数据加载结果
+        if len(features) == 0:
+            raise ValueError("未加载到任何有效数据，请检查数据格式和路径")
+            
+        features = np.array(features)
+        labels = np.array(labels)
+        
+        # 打印数据集统计信息
+        print(f"\n数据集加载完成 - 特征形状: {features.shape}")
+        for i, class_name in enumerate(Config.CLASS_NAMES):
+            count = np.sum(labels == i)
+            print(f"{class_name} 样本数 ({i}): {count} ({count/len(labels)*100:.2f}%)")
+        print(f"总样本数: {len(labels)}")
+        print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
+        
+        return features, labels
+    
+
+def main():
+    # 加载配置
+    config = Config()
+    print(f"使用数据集类别: {config.CLASS_NAMES}")
+    
+    # 加载数据
+    print("开始加载SLI语音疾病数据集...")
+    features, labels = SLIDataset.load_data(config.ROOT_DIR)
+    
+    # 划分训练集、验证集和测试集
+    train_features, temp_features, train_labels, temp_labels = train_test_split(
+        features, labels,
+        train_size=config.TRAIN_RATIO,
+        random_state=config.RANDOM_STATE,
+        stratify=labels
+    )
+    
+    val_features, test_features, val_labels, test_labels = train_test_split(
+        temp_features, temp_labels,
+        test_size=config.TEST_RATIO/(config.VALID_RATIO + config.TEST_RATIO),
+        random_state=config.RANDOM_STATE,
+        stratify=temp_labels
+    )
+    
+    # 打印数据集划分情况
+    print("\n数据集划分情况:")
+    print(f"训练集样本数: {len(train_labels)}")
+    print(f"验证集样本数: {len(val_labels)}")
+    print(f"测试集样本数: {len(test_labels)}")
+    
+    print("\n训练集类别分布:")
+    for i, class_name in enumerate(config.CLASS_NAMES):
+        count = np.sum(train_labels == i)
+        print(f"{class_name}: {count} ({count/len(train_labels)*100:.2f}%)")
+    
+    # 注意：SMOTE通常用于一维特征，对二维图像特征不适用，这里注释掉
+    # 如果确实需要处理类别不平衡，可以考虑其他方法如加权损失函数
+    
+    # 创建数据加载器（注意：CNN输入不需要标准化，因为我们已经在特征提取时做了）
+    train_dataset = BaseDataset(train_features, train_labels)
+    val_dataset = BaseDataset(val_features, val_labels)
+    test_dataset = BaseDataset(test_features, test_labels)
+    
+    train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=config.BATCH_SIZE, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=False)
+    
+    # 初始化模型、损失函数和优化器
+    print(f"\n输入特征形状: {features[0].shape}")
+    model = SimpleCNN(input_channels=1, num_classes=len(config.CLASS_NAMES))
+    
+    # 计算并更新类别权重
+    class_counts = np.bincount(train_labels)
+    config.CLASS_WEIGHTS = len(train_labels) / (len(config.CLASS_NAMES) * class_counts)
+    print(f"自动计算的类别权重: {config.CLASS_WEIGHTS}")
+    
+    class_weights = torch.FloatTensor(config.CLASS_WEIGHTS)
+    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+    
+    # 训练和评估
+    print("\n开始模型训练...")
+    metrics = train_and_evaluate(model, train_loader, val_loader, test_loader,
+                                criterion, optimizer, config)
+    
+    # 保存结果
+    save_results(metrics, config)
+    
+    print("所有流程完成!")
 
 if __name__ == "__main__":
-    # 获取音频路径和标签
-    audio_paths, labels = get_audio_paths_and_labels()
-
-    # 划分训练集和测试集
-    train_paths, test_paths, train_labels, test_labels = train_test_split(
-        audio_paths, labels, test_size=0.2, random_state=42, stratify=labels  # 增加stratify确保分层抽样
-    )
-
-    # 创建数据集和数据加载器
-    train_dataset = AudioDataset(train_paths, train_labels)
-    test_dataset = AudioDataset(test_paths, test_labels)
-
-    train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=8, shuffle=False)
-
-    # 初始化模型、损失函数和优化器
-    input_dim = n_mfcc  # MFCC 均值的维度
-    model = MLP(input_dim)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-    # 用于记录每轮的指标
-    train_losses = []
-    train_accuracies = []
-    
-    # 测试集指标 - 基础指标
-    test_accuracies = []
-    test_recalls = []  # 灵敏度
-    test_specificities = []
-    test_f1_scores = []
-    test_aucs = []
-    
-    # 测试集指标 - 混淆矩阵相关
-    test_tps = []  # 真阳性
-    test_tns = []  # 真阴性
-    test_fps = []  # 假阳性
-    test_fns = []  # 假阴性
-    test_total_samples = []  # 总样本数
-    test_actual_healthy = []  # 实际健康样本数（TN+FP）
-    test_actual_patients = []  # 实际患者样本数（TP+FN）
-    test_pred_healthy = []  # 预测健康样本数（TN+FN）
-    test_pred_patients = []  # 预测患者样本数（TP+FP）
-
-    # 训练模型
-    num_epochs = 10
-    for epoch in range(num_epochs):
-        model.train()
-        running_loss = 0.0
-        correct = 0
-        total = 0
-        
-        for inputs, targets in train_loader:
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            running_loss += loss.item() * inputs.size(0)
-
-            _, predicted = torch.max(outputs.data, 1)
-            total += targets.size(0)
-            correct += (predicted == targets).sum().item()
-
-        # 计算训练集指标
-        epoch_loss = running_loss / len(train_dataset)
-        train_accuracy = 100 * correct / total  # 百分比
-        train_losses.append(epoch_loss)
-        train_accuracies.append(train_accuracy)
-
-        # 测试模型并记录指标
-        model.eval()
-        y_pred = []
-        y_true = []
-        y_scores = []
-        
-        with torch.no_grad():
-            for inputs, targets in test_loader:
-                outputs = model(inputs)
-                _, predicted = torch.max(outputs, 1)
-                y_pred.extend(predicted.tolist())
-                y_true.extend(targets.tolist())
-                probs = torch.softmax(outputs, dim=1)[:, 1].tolist()  # 取疾病类别的概率
-                y_scores.extend(probs)
-
-        # 计算混淆矩阵基础值
-        cm = confusion_matrix(y_true, y_pred)
-        # 确保混淆矩阵是2x2（处理边缘情况）
-        if cm.shape == (1, 1):
-            # 所有样本都属于一个类别
-            if y_true[0] == 0:
-                tn, fp, fn, tp = cm[0,0], 0, 0, 0
-            else:
-                tn, fp, fn, tp = 0, 0, 0, cm[0,0]
-        elif cm.shape == (2, 2):
-            tn, fp, fn, tp = cm.ravel()
-        else:
-            tn, fp, fn, tp = 0, 0, 0, 0
-
-        # 计算衍生指标
-        total_samples = len(y_true)
-        actual_healthy = tn + fp  # 实际健康样本数（0类）
-        actual_patients = tp + fn  # 实际患者样本数（1类）
-        pred_healthy = tn + fn    # 预测为健康的样本数
-        pred_patients = tp + fp   # 预测为患者的样本数
-        
-        accuracy = accuracy_score(y_true, y_pred) * 100  # 转为百分比，与训练集一致
-        recall = recall_score(y_true, y_pred) if (tp + fn) != 0 else 0  # 灵敏度
-        specificity = tn / (tn + fp) if (tn + fp) != 0 else 0
-        f1 = f1_score(y_true, y_pred)
-        auc = roc_auc_score(y_true, y_scores) if len(set(y_true)) > 1 else 0  # 确保有两个类别
-
-        # 保存测试集指标
-        test_accuracies.append(accuracy)
-        test_recalls.append(recall)
-        test_specificities.append(specificity)
-        test_f1_scores.append(f1)
-        test_aucs.append(auc)
-        
-        # 保存混淆矩阵相关指标
-        test_tps.append(tp)
-        test_tns.append(tn)
-        test_fps.append(fp)
-        test_fns.append(fn)
-        test_total_samples.append(total_samples)
-        test_actual_healthy.append(actual_healthy)
-        test_actual_patients.append(actual_patients)
-        test_pred_healthy.append(pred_healthy)
-        test_pred_patients.append(pred_patients)
-
-        # 打印本轮指标
-        print(f"Epoch {epoch + 1}/{num_epochs}")
-        print(f"训练: 损失={epoch_loss:.4f}, 准确率={train_accuracy:.2f}%")
-        print(f"测试: 准确率={accuracy:.2f}%, 灵敏度={recall:.4f}, 特异度={specificity:.4f}")
-        print(f"      F1={f1:.4f}, AUC={auc:.4f}, TP={tp}, TN={tn}, FP={fp}, FN={fn}")
-        print("----------------------------------------")
-
-    # 绘制并保存损失和准确率图像
-    plt.figure(figsize=(12, 5))
-    
-    # 损失图像
-    plt.subplot(1, 2, 1)
-    plt.plot(train_losses, label='Training Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training Loss Over Epochs')
-    plt.legend()
-    plt.grid(alpha=0.3)
-    
-    # 准确率图像（统一为百分比）
-    plt.subplot(1, 2, 2)
-    plt.plot(train_accuracies, label='Training Accuracy')
-    plt.plot(test_accuracies, label='Test Accuracy')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy (%)')
-    plt.title('Accuracy Over Epochs')
-    plt.legend()
-    plt.grid(alpha=0.3)
-    
-    # 保存图像到工作目录
-    plot_path = os.path.join(current_dir, 'training_metrics.png')
-    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
-    plt.close()
-    print(f"训练指标图像已保存至: {plot_path}")
-
-    # 将详细指标写入文本文档（保存到工作目录）
-    metrics_path = os.path.join(current_dir, 'training_metrics_detailed.txt')
-    with open(metrics_path, 'a') as f:
-        # 写入表头
-        f.write('Epoch\t')
-        f.write('Train Loss\tTrain Accuracy(%)\t')
-        f.write('Test Accuracy(%)\tSensitivity\tSpecificity\tF1 Score\tAUC\t')
-        f.write('TP\tTN\tFP\tFN\t')
-        f.write('Total Samples\tActual Healthy\tActual Patients\t')
-        f.write('Predicted Healthy\tPredicted Patients\n')
-        
-        # 写入每轮数据
-        for i in range(num_epochs):
-            f.write(f"{i + 1}\t\t\t")
-            f.write(f"{train_losses[i]:.4f}\t\t\t{train_accuracies[i]:.2f}\t\t\t")
-            f.write(f"{test_accuracies[i]:.2f}\t\t{test_recalls[i]:.4f}\t\t{test_specificities[i]:.4f}\t\t{test_f1_scores[i]:.4f}\t\t{test_aucs[i]:.4f}\t\t")
-            f.write(f"{test_tps[i]}\t\t{test_tns[i]}\t\t{test_fps[i]}\t\t{test_fns[i]}\t\t")
-            f.write(f"{test_total_samples[i]}\t\t{test_actual_healthy[i]}\t\t{test_actual_patients[i]}\t\t")
-            f.write(f"{test_pred_healthy[i]}\t\t{test_pred_patients[i]}\n")
-    
-    print(f"详细指标数据已保存至: {metrics_path}")
-    
+    main()

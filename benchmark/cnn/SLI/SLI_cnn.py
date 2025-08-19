@@ -53,20 +53,29 @@ class Config:
 class SLIDataset(BaseDataset):
     @classmethod
     def get_audio_durations(cls, root_dir):
-        """统计数据集中所有音频的时长（秒），用于动态计算目标时长"""
+        """统计数据集中所有音频的时长（秒），用于动态计算目标时长
+        递归遍历根目录下所有层级的文件夹，获取所有.wav文件
+        """
         file_list = []
-        for label, class_name in enumerate(Config.CLASS_NAMES):
-            class_dir = os.path.join(root_dir, class_name)
-            if not os.path.exists(class_dir):
-                raise ValueError(f"类别文件夹不存在: {class_dir}")
-            for filename in os.listdir(class_dir):
-                if filename.lower().endswith('.wav'):
-                    file_path = os.path.join(class_dir, filename)
+        
+        # 检查根目录是否存在
+        if not os.path.exists(root_dir):
+            raise ValueError(f"数据根目录不存在: {root_dir}")
+        
+        # 递归遍历所有文件夹，收集.wav文件
+        print(f"开始递归遍历目录: {root_dir}，查找所有WAV音频文件...")
+        for root, dirs, files in os.walk(root_dir):
+            for file in files:
+                if file.lower().endswith('.wav'):
+                    file_path = os.path.join(root, file)
                     file_list.append(file_path)
+        
+        if not file_list:
+            raise ValueError(f"在根目录 {root_dir} 及其子目录中未找到任何WAV文件")
         
         durations = []
         errors = []
-        print(f"开始统计 {len(file_list)} 个音频的时长...")
+        print(f"共发现 {len(file_list)} 个WAV音频文件，开始统计时长...")
         
         # 多线程统计时长（仅读取音频元数据，不加载完整信号，速度快）
         def get_duration(file_path):
@@ -91,8 +100,12 @@ class SLIDataset(BaseDataset):
         # 处理异常
         if errors:
             print(f"警告：{len(errors)} 个文件无法获取时长，已忽略")
+            # 可选：打印具体错误信息（调试时用）
+            # for err in errors:
+            #     print(f"  - {err}")
+        
         if not durations:
-            raise ValueError("未统计到任何有效音频时长，请检查文件格式")
+            raise ValueError("未统计到任何有效音频时长，请检查文件格式是否正确")
         
         # 计算时长分布统计量
         durations = np.array(durations)

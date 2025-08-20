@@ -42,8 +42,8 @@ class Config:
 
     # 训练相关
     RANDOM_STATE = 42
-    BATCH_SIZE = 8
-    LEARNING_RATE = 0.001
+    BATCH_SIZE = 16
+    LEARNING_RATE = 0.002
     NUM_EPOCHS = 100
     CLASS_WEIGHTS = [1.0, 1.0, 1.0, 1.0]  # 初始值，后续会动态计算
 
@@ -111,7 +111,7 @@ class UGADataset(BaseDataset):
         durations = np.array(durations)
         mean_dur = np.mean(durations)
         median_dur = np.median(durations)
-        p95_dur = np.percentile(durations, 95)  # 95分位数（排除5%的超长音频）
+        p95_dur = np.percentile(durations, 85)  # 95分位数（排除5%的超长音频）
         
         print(f"\n音频时长分布统计:")
         print(f"均值: {mean_dur:.2f}秒，中位数: {median_dur:.2f}秒，95分位数: {p95_dur:.2f}秒")
@@ -186,13 +186,29 @@ class UGADataset(BaseDataset):
                     features.append(feat)
                     labels.append(lab)
         
-        # 结果统计
+        # 打印错误信息（参考MLP的错误展示方式）
         if errors:
-            print(f"{len(errors)} 个文件处理失败（见日志）")
+            print(f"\n处理完成，共 {len(errors)} 个文件处理失败:")
+            for err in errors[:10]:  # 只显示前10个错误
+                print(err)
+            if len(errors) > 10:
+                print(f"... 还有 {len(errors)-10} 个错误未显示")
         
+        # 验证数据加载结果
+        if len(features) == 0:
+            raise ValueError("未加载到任何有效数据，请检查数据格式和路径")
+            
         features = np.array(features)
         labels = np.array(labels)
-        print(f"数据集加载完成 - 特征形状: {features.shape}（高度={Config.N_MELS}, 宽度={features.shape[2]}）")
+        
+        # 打印数据集统计信息（参考MLP的统计格式）
+        print(f"\n数据集加载完成 - 特征形状: {features.shape}（高度={Config.N_MELS}, 宽度={features.shape[2]}）")
+        for i, class_name in enumerate(Config.CLASS_NAMES):
+            count = np.sum(labels == i)
+            print(f"{class_name} 样本数 ({i}): {count} ({count/len(labels)*100:.2f}%)")
+        print(f"总样本数: {len(labels)}")
+        print(f"处理成功率: {len(features)/len(file_list)*100:.2f}%")
+        
         return features, labels
 
 def main():

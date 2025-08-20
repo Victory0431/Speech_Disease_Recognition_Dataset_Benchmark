@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 import os
 import numpy as np
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -14,6 +14,7 @@ import concurrent.futures
 
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 from models.cnn import SimpleCNN
+from models.cnn_improved import ImprovedCNN
 from configs.MFCC_config import MFCCConfig
 from datasets.BaseDataset import BaseDataset
 from trainer.evaluate_detailed_cnn import evaluate_model_detailed
@@ -286,7 +287,7 @@ def main():
     
     # 步骤5：初始化模型并训练
     print(f"\n输入特征形状: {train_features[0].shape}")
-    model = SimpleCNN(input_channels=1, num_classes=len(config.CLASS_NAMES))
+    model = ImprovedCNN(input_channels=1, num_classes=len(config.CLASS_NAMES))
     # 类别权重计算
     class_counts = np.bincount(train_labels)
     config.CLASS_WEIGHTS = len(train_labels) / (len(config.CLASS_NAMES) * class_counts)

@@ -112,7 +112,7 @@ class UGADataset(BaseDataset):
         durations = np.array(durations)
         mean_dur = np.mean(durations)
         median_dur = np.median(durations)
-        p95_dur = np.percentile(durations, 85)  # 95分位数（排除5%的超长音频）
+        p95_dur = np.percentile(durations, 95)  # 95分位数（排除5%的超长音频）
         
         print(f"\n音频时长分布统计:")
         print(f"均值: {mean_dur:.2f}秒，中位数: {median_dur:.2f}秒，95分位数: {p95_dur:.2f}秒")

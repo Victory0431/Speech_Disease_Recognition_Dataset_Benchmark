@@ -14,6 +14,7 @@ import concurrent.futures
 
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 from models.cnn import SimpleCNN
+from models.cnn_improved import ImprovedCNN
 from configs.MFCC_config import MFCCConfig
 from datasets.BaseDataset import BaseDataset
 from trainer.evaluate_detailed_cnn import evaluate_model_detailed
@@ -244,13 +245,13 @@ def main():
     val_dataset = BaseDataset(val_features, val_labels)
     test_dataset = BaseDataset(test_features, test_labels)
     
-    train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config.BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True, num_workers=16, pin_memory=True)
+    val_loader = DataLoader(val_dataset, batch_size=config.BATCH_SIZE, shuffle=False, num_workers=16, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=False, num_workers=16, pin_memory=True)
     
     # 步骤5：初始化模型并训练
     print(f"\n输入特征形状: {features[0].shape}")
-    model = SimpleCNN(input_channels=1, num_classes=len(config.CLASS_NAMES))
+    model = ImprovedCNN(input_channels=1, num_classes=len(config.CLASS_NAMES))
     
     # 类别权重计算
     class_counts = np.bincount(train_labels)

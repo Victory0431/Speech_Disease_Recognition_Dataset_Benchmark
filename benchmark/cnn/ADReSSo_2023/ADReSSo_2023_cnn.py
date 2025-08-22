@@ -1,9 +1,9 @@
-# 导入依赖库
 import sys
 from pathlib import Path
 import os
 import numpy as np
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"  # 指定GPU设备
+import pandas as pd
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
@@ -12,30 +12,31 @@ import librosa
 from tqdm import tqdm
 import concurrent.futures
 
-# 添加tools目录到Python路径（确保能找到models包）
+# 添加tools目录到Python路径
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 from models.cnn import SimpleCNN
 from models.cnn_improved import ImprovedCNN
-from configs.MFCC_config import MFCCConfig
 from datasets.BaseDataset import BaseDataset
 from trainer.evaluate_detailed_cnn import evaluate_model_detailed
 from trainer.train_and_evaluate_cnn import train_and_evaluate
 from utils.save_results import save_results
 
-# 配置参数 - 集中管理所有可配置项
 class Config:
-    # 数据相关（适配Pitt数据集）
-    ROOT_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/pitt"
-    CLASS_NAMES = ["Control", "Dementia"]  # 0: 健康对照组, 1: 痴呆疾病组
-    TRAIN_RATIO = 0.7
-    VALID_RATIO = 0.15
-    TEST_RATIO = 0.15
+    # 数据相关
+    TRAIN_AUDIO_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/ADReSSo_2023/ADReSS_M_train/train/"
+    TRAIN_LABEL_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/ADReSSo_2023/ADReSS_M_train/training-groundtruth.csv"
+    TEST_AUDIO_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/ADReSSo_2023/ADReSS_M_test_gr/test-gr/"
+    TEST_LABEL_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/ADReSSo_2023/ADReSS_M_test_gr/test-gr-groundtruth.csv"
+    
+    CLASS_NAMES = ["Control", "ProbableAD"]  # 0: Control, 1: ProbableAD
+    TRAIN_RATIO = 0.8  # 从原始训练集中划分
+    VALID_RATIO = 0.2  # 从原始训练集中划分
 
-    # 音频处理相关（固定参数）
+    # 音频处理相关
     SAMPLE_RATE = 16000  # 统一采样率
-    N_MELS = 128         # 固定梅尔带数量
-    HOP_LENGTH = 512     # 固定帧移
-    N_FFT = 2048         # 固定FFT窗口
+    N_MELS = 128         # 梅尔带数量
+    HOP_LENGTH = 512     # 帧移
+    N_FFT = 2048         # FFT窗口
     DURATION = None      # 动态计算，后续赋值
 
     # 训练相关
@@ -47,59 +48,59 @@ class Config:
 
     # 输出相关
     OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
-    PLOT_FILENAME = "pitt_cnn_training_metrics.png"
-    METRICS_FILENAME = "pitt_cnn_training_metrics_detailed.txt"
-    CONFUSION_MATRIX_FILENAME = "pitt_cnn_confusion_matrix.png"
+    PLOT_FILENAME = "adress_m_cnn_training_metrics.png"
+    METRICS_FILENAME = "adress_m_cnn_training_metrics_detailed.txt"
+    CONFUSION_MATRIX_FILENAME = "adress_m_cnn_confusion_matrix.png"
 
-class PittDataset(BaseDataset):
+class ADReSSMDataset(BaseDataset):
     @classmethod
-    def _get_wav_files(cls):
-        """收集所有符合条件的WAV文件路径（内部辅助方法）"""
+    def _get_audio_files(cls, audio_dir, label_path, is_test=False):
+        """收集所有符合条件的音频文件路径（内部辅助方法）"""
+        # 读取标签文件
+        try:
+            df = pd.read_csv(label_path)
+        except Exception as e:
+            raise ValueError(f"无法读取标签文件 {label_path}: {str(e)}")
+        
+        # 创建文件名到标签的映射
+        label_map = {}
+        for _, row in df.iterrows():
+            try:
+                base_name = row['addressfname']
+            except:
+                base_name = row['adressfname']
+            label_map[base_name] = row['dx']
+        
+        # 收集所有音频文件路径
         file_list = []
+        audio_ext = '.wav' if is_test else '.mp3'
         
-        # 定义疾病组和对照组目录
-        dementia_dir = os.path.join(Config.ROOT_DIR, "dementia")
-        control_dir = os.path.join(Config.ROOT_DIR, "control")
-        
-        # 处理疾病组文件（dementia）
-        if os.path.exists(dementia_dir):
-            # 遍历dementia目录下的4个子文件夹
-            for subdir in os.listdir(dementia_dir):
-                subdir_path = os.path.join(dementia_dir, subdir)
-                if os.path.isdir(subdir_path):
-                    # 处理该子目录下的所有WAV文件
-                    wav_files = [f for f in os.listdir(subdir_path) if f.lower().endswith('.mp3')]
-                    for filename in wav_files:
-                        file_path = os.path.join(subdir_path, filename)
-                        file_list.append(file_path)
-        
-        # 处理对照组文件（control）
-        if os.path.exists(control_dir):
-            # 遍历control目录下的4个子文件夹
-            for subdir in os.listdir(control_dir):
-                subdir_path = os.path.join(control_dir, subdir)
-                if os.path.isdir(subdir_path):
-                    # 处理该子目录下的所有WAV文件
-                    wav_files = [f for f in os.listdir(subdir_path) if f.lower().endswith('.mp3')]
-                    for filename in wav_files:
-                        file_path = os.path.join(subdir_path, filename)
-                        file_list.append(file_path)
+        for filename in os.listdir(audio_dir):
+            if filename.lower().endswith(audio_ext):
+                base_name = os.path.splitext(filename)[0]
+                if base_name in label_map:
+                    file_path = os.path.join(audio_dir, filename)
+                    file_list.append(file_path)
         
         if not file_list:
-            raise ValueError("未找到任何WAV文件，请检查目录结构和路径")
+            raise ValueError("未找到任何有效的音频文件，请检查路径和文件名")
             
         return file_list
 
     @classmethod
     def get_audio_durations(cls):
-        """统计数据集中所有WAV音频的时长，用于动态计算目标时长"""
-        file_list = cls._get_wav_files()
-        print(f"共发现 {len(file_list)} 个WAV音频文件，开始统计时长...")
+        """统计数据集中所有音频的时长，用于动态计算目标时长"""
+        # 收集训练集和测试集所有音频文件
+        train_files = cls._get_audio_files(Config.TRAIN_AUDIO_DIR, Config.TRAIN_LABEL_PATH, is_test=False)
+        test_files = cls._get_audio_files(Config.TEST_AUDIO_DIR, Config.TEST_LABEL_PATH, is_test=True)
+        all_files = train_files + test_files
+        
+        print(f"共发现 {len(all_files)} 个音频文件，开始统计时长...")
         
         durations = []
         errors = []
         
-        # 多线程获取音频时长（针对大规模文件优化）
+        # 多线程获取音频时长
         def get_duration(file_path):
             try:
                 duration = librosa.get_duration(path=file_path, sr=Config.SAMPLE_RATE)
@@ -110,7 +111,7 @@ class PittDataset(BaseDataset):
         # 增加线程数以加速大规模数据处理
         max_workers = min(128, os.cpu_count() * 8)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(get_duration, fp) for fp in file_list]
+            futures = [executor.submit(get_duration, fp) for fp in all_files]
             for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc="统计时长"):
                 dur, err = future.result()
                 if err:
@@ -129,7 +130,7 @@ class PittDataset(BaseDataset):
         durations = np.array(durations)
         mean_dur = np.mean(durations)
         median_dur = np.median(durations)
-        p95_dur = np.percentile(durations, 75)  # 95分位数
+        p95_dur = np.percentile(durations, 95)  # 95分位数
         
         print(f"\n音频时长分布统计:")
         print(f"均值: {mean_dur:.2f}秒，中位数: {median_dur:.2f}秒，95分位数: {p95_dur:.2f}秒")
@@ -141,41 +142,41 @@ class PittDataset(BaseDataset):
         return target_duration
 
     @classmethod
-    def load_data(cls, target_duration):
-        """加载数据并转换为梅尔频谱图（使用多线程加速处理大规模文件）"""
-        # 收集所有文件路径和对应的标签
+    def load_data(cls, audio_dir, label_path, is_test, target_duration):
+        """加载数据并转换为梅尔频谱图（使用多线程加速处理）"""
+        # 读取标签文件
+        try:
+            df = pd.read_csv(label_path)
+            print(f"成功加载标签文件，共 {len(df)} 条记录")
+        except Exception as e:
+            raise ValueError(f"无法读取标签文件 {label_path}: {str(e)}")
+        
+        # 创建文件名到标签的映射
+        label_map = {}
+        for _, row in df.iterrows():
+            try:
+                base_name = row['addressfname']
+            except:
+                base_name = row['adressfname']
+            label = 0 if row['dx'] == 'Control' else 1  # 0: Control, 1: ProbableAD
+            label_map[base_name] = label
+        
+        # 收集所有音频文件路径和标签
         file_list = []
+        audio_ext = '.wav' if is_test else '.mp3'
         
-        # 定义疾病组和对照组目录
-        dementia_dir = os.path.join(Config.ROOT_DIR, "dementia")
-        control_dir = os.path.join(Config.ROOT_DIR, "control")
-        
-        # 处理疾病组文件（dementia）
-        if os.path.exists(dementia_dir):
-            # 遍历dementia目录下的4个子文件夹
-            for subdir in os.listdir(dementia_dir):
-                subdir_path = os.path.join(dementia_dir, subdir)
-                if os.path.isdir(subdir_path):
-                    # 处理该子目录下的所有WAV文件
-                    wav_files = [f for f in os.listdir(subdir_path) if f.lower().endswith('.mp3')]
-                    for filename in wav_files:
-                        file_path = os.path.join(subdir_path, filename)
-                        file_list.append((file_path, 1))  # 疾病组标签为1
-        
-        # 处理对照组文件（control）
-        if os.path.exists(control_dir):
-            # 遍历control目录下的4个子文件夹
-            for subdir in os.listdir(control_dir):
-                subdir_path = os.path.join(control_dir, subdir)
-                if os.path.isdir(subdir_path):
-                    # 处理该子目录下的所有WAV文件
-                    wav_files = [f for f in os.listdir(subdir_path) if f.lower().endswith('.mp3')]
-                    for filename in wav_files:
-                        file_path = os.path.join(subdir_path, filename)
-                        file_list.append((file_path, 0))  # 对照组标签为0
+        for filename in os.listdir(audio_dir):
+            if filename.lower().endswith(audio_ext):
+                base_name = os.path.splitext(filename)[0]
+                if base_name in label_map:
+                    file_path = os.path.join(audio_dir, filename)
+                    label = label_map[base_name]
+                    file_list.append((file_path, label))
+                else:
+                    print(f"警告: 未找到 {base_name} 的标签，已跳过")
         
         if not file_list:
-            raise ValueError("未找到任何WAV文件，请检查目录结构和路径")
+            raise ValueError("未找到任何有效的音频文件和标签组合，请检查路径和文件名")
             
         print(f"发现 {len(file_list)} 个音频文件，开始多线程处理（目标时长: {target_duration}秒）...")
         
@@ -183,7 +184,7 @@ class PittDataset(BaseDataset):
             file_path, label = file_info
             filename = os.path.basename(file_path)
             try:
-                # 读取WAV音频
+                # 读取音频文件
                 signal, sr = librosa.load(file_path, sr=Config.SAMPLE_RATE)
                 
                 # 处理音频长度
@@ -212,12 +213,12 @@ class PittDataset(BaseDataset):
             except Exception as e:
                 return (None, None, f"处理 {filename} 出错: {str(e)}")
         
-        # 多线程处理音频（针对大规模文件优化）
+        # 多线程处理音频
         features = []
         labels = []
         errors = []
         
-        # 大幅提高线程池大小以加速大规模数据处理
+        # 提高线程池大小以加速大规模数据处理
         max_workers = min(128, os.cpu_count() * 16)
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [executor.submit(process_file, info) for info in file_list]
@@ -257,29 +258,35 @@ class PittDataset(BaseDataset):
 def main():
     # 初始化配置
     config = Config()
-    print(f"处理数据集: {config.ROOT_DIR}")
+    print(f"处理ADReSS-M数据集")
     
-    # 步骤1：统计音频时长，确定目标时长
-    target_duration = PittDataset.get_audio_durations()
+    # 步骤1：统计所有音频时长，确定目标时长
+    target_duration = ADReSSMDataset.get_audio_durations()
     config.DURATION = target_duration  # 保存到配置中
     
-    # 步骤2：基于目标时长加载并处理数据
-    print("\n开始加载并处理数据...")
-    features, labels = PittDataset.load_data(target_duration)
-    
-    # 步骤3：划分数据集
-    train_features, temp_features, train_labels, temp_labels = train_test_split(
-        features, labels, 
-        train_size=config.TRAIN_RATIO, 
-        random_state=config.RANDOM_STATE, 
-        stratify=labels
+    # 步骤2：加载并处理训练和测试数据
+    print("\n开始加载并处理训练数据...")
+    train_val_features, train_val_labels = ADReSSMDataset.load_data(
+        config.TRAIN_AUDIO_DIR, 
+        config.TRAIN_LABEL_PATH, 
+        is_test=False,
+        target_duration=target_duration
     )
     
-    val_features, test_features, val_labels, test_labels = train_test_split(
-        temp_features, temp_labels, 
-        test_size=config.TEST_RATIO/(config.VALID_RATIO + config.TEST_RATIO), 
+    print("\n开始加载并处理测试数据...")
+    test_features, test_labels = ADReSSMDataset.load_data(
+        config.TEST_AUDIO_DIR, 
+        config.TEST_LABEL_PATH, 
+        is_test=True,
+        target_duration=target_duration
+    )
+    
+    # 步骤3：从训练集中划分训练集和验证集
+    train_features, val_features, train_labels, val_labels = train_test_split(
+        train_val_features, train_val_labels, 
+        train_size=config.TRAIN_RATIO, 
         random_state=config.RANDOM_STATE, 
-        stratify=temp_labels
+        stratify=train_val_labels
     )
     
     # 步骤4：创建数据加载器
@@ -292,12 +299,17 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=False, num_workers=16, pin_memory=True)
     
     # 步骤5：初始化模型并训练
-    print(f"\n输入特征形状: {features[0].shape}")
+    print(f"\n输入特征形状: {train_features[0].shape}")
+    # 添加通道维度 (1, n_mels, time_steps)
+    input_shape = (1, train_features[0].shape[0], train_features[0].shape[1])
+    print(f"模型输入形状: {input_shape}")
+    
     model = ImprovedCNN(input_channels=1, num_classes=len(config.CLASS_NAMES))  # 二分类
     
     # 计算类别权重
     class_counts = np.bincount(train_labels)
     config.CLASS_WEIGHTS = len(train_labels) / (len(config.CLASS_NAMES) * class_counts)
+    print(f"自动计算的类别权重: {config.CLASS_WEIGHTS}")
     
     criterion = nn.CrossEntropyLoss(weight=torch.FloatTensor(config.CLASS_WEIGHTS))
     optimizer = torch.optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
@@ -311,3 +323,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

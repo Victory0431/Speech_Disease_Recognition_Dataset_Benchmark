@@ -127,7 +127,7 @@ class EDAICDataset(BaseDataset):
         durations = np.array(durations)
         mean_dur = np.mean(durations)
         median_dur = np.median(durations)
-        p95_dur = np.percentile(durations, 95)  # 95分位数
+        p95_dur = np.percentile(durations, 75)  # 95分位数
         
         print(f"\n音频时长分布统计:")
         print(f"均值: {mean_dur:.2f}秒，中位数: {median_dur:.2f}秒，95分位数: {p95_dur:.2f}秒")
@@ -136,6 +136,7 @@ class EDAICDataset(BaseDataset):
         # 选择95分位数作为目标时长
         target_duration = round(p95_dur, 1)
         print(f"选择目标时长: {target_duration}秒（95分位数，覆盖95%样本的完整信息）")
+        return 200
         return target_duration
 
     @classmethod

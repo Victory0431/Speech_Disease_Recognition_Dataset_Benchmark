@@ -2,22 +2,43 @@ import pandas as pd
 import os
 import csv
 
+def convert_to_numeric(value):
+    """将值转换为数值类型，处理可能的异常"""
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
 def find_max_test_accuracy(file_path):
-    """从单个结果文件中提取最高测试准确率及对应的epoch"""
+    """从单个结果文件中提取最高测试准确率及对应的epoch，增加类型检查"""
     try:
         # 读取文本文件，使用制表符作为分隔符
-        df = pd.read_csv(file_path, sep='\t')
+        df = pd.read_csv(file_path, sep='\t', dtype=str)  # 先都按字符串读取，避免自动类型识别错误
         
         # 检查是否包含所需列
-        if 'Test Accuracy(%)' not in df.columns or 'Epoch' not in df.columns:
-            return None, "文件缺少必要的列（Test Accuracy(%) 或 Epoch）"
+        required_columns = ['Test Accuracy(%)', 'Epoch']
+        for col in required_columns:
+            if col not in df.columns:
+                return None, f"文件缺少必要的列：{col}"
         
-        # 提取测试集准确率列
-        test_accuracies = df['Test Accuracy(%)']
+        # 转换为数值类型
+        df['Test Accuracy(%)'] = df['Test Accuracy(%)'].apply(convert_to_numeric)
+        df['Epoch'] = df['Epoch'].apply(convert_to_numeric)
+        
+        # 检查转换后的数据
+        if df['Test Accuracy(%)'].isna().all():
+            return None, "测试准确率列无法转换为数值"
+        if df['Epoch'].isna().all():
+            return None, "Epoch列无法转换为数值"
+        
+        # 移除无效行
+        valid_rows = df.dropna(subset=['Test Accuracy(%)', 'Epoch'])
+        if valid_rows.empty:
+            return None, "没有有效的测试准确率数据行"
         
         # 找到最大值及其对应的epoch
-        max_accuracy = test_accuracies.max()
-        max_epoch = df[test_accuracies == max_accuracy]['Epoch'].values[0]
+        max_accuracy = valid_rows['Test Accuracy(%)'].max()
+        max_epoch = valid_rows[valid_rows['Test Accuracy(%)'] == max_accuracy]['Epoch'].values[0]
         
         return (max_epoch, max_accuracy), None
         
@@ -101,7 +122,7 @@ if __name__ == "__main__":
     analysis_results = process_cnn_directories(root_directory)
     
     # 输出结果到根目录下的CSV文件
-    result_dir = '/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/tools/fetch_results'
-    output_csv = os.path.join(result_dir, "cnn_test_accuracy_summary.csv")
+    out_dir = '/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/tools/fetch_results'
+    output_csv = os.path.join(out_dir, "mlp_test_accuracy_summary.csv")
     save_results_to_csv(analysis_results, output_csv)
     

@@ -31,6 +31,9 @@ PD_PATHS = [
     "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/Parkinson_KCL_2017/ReadText/PD"
 ]
 
+# 本地模型路径 - 请修改为你的本地模型文件夹路径
+LOCAL_MODEL_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mantis/model/"  # 例如: "/mnt/data/test1/models/Mantis-8M"
+
 class RawAudioDataset(Dataset):
     """原始音频数据集类，直接使用音频采样点作为输入"""
     def __init__(self, file_paths, labels, target_length=TARGET_LENGTH):
@@ -59,13 +62,13 @@ class RawAudioDataset(Dataset):
         signal = torch.FloatTensor(signal)
         
         # 调整长度以适应Mantis模型的输入序列长度
-        # 使用插值方法将长序列缩减到目标长度
+        # 修正后代码
         signal = torch.nn.functional.interpolate(
-            signal.unsqueeze(0).unsqueeze(0),  # 形状变为 (1, 1, len(signal))
-            size=(1, self.target_length),  # 保持1个通道，调整序列长度
+            signal.unsqueeze(0).unsqueeze(0),  # 保持输入形状 (1, 1, 110250)（1批次、1通道、1维长度110250）
+            size=(512,),  # 修正：目标尺寸为1维（长度512），与输入空间维度数量一致
             mode='linear',
             align_corners=False
-        ).squeeze(0)  # 形状变为 (1, target_length)
+        ).squeeze(0).squeeze(0)  # 额外多一次 squeeze(0)，将 (1, 512) 转为 (512,)（最终1维信号）
         
         # 转置为 (序列长度, 通道数) 格式
         signal = signal.permute(1, 0)
@@ -259,9 +262,16 @@ def train_model(model, train_loader, test_loader, device, epochs=20, lr=1e-4):
     return model
 
 def main():
-    # 检查设备
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
+    # 指定使用第7号GPU
+    os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+    
+    # 检查GPU是否可用
+    if torch.cuda.is_available():
+        device = torch.device(f'cuda:0')  # 由于已经指定了CUDA_VISIBLE_DEVICES，这里用cuda:0即可
+        print(f"Using GPU: {torch.cuda.get_device_name(device)} (device index 7)")
+    else:
+        device = torch.device('cpu')
+        print("CUDA is not available, using CPU instead.")
     
     # 加载数据
     print("Loading data...")
@@ -272,11 +282,11 @@ def main():
     train_loader, test_loader, train_size, test_size = create_dataloaders(file_paths, labels)
     print(f"Training samples: {train_size}, Testing samples: {test_size}")
     
-    # 加载预训练的Mantis模型
-    print("Loading pre-trained Mantis model...")
+    # 加载本地Mantis模型
+    print(f"Loading Mantis model from local path: {LOCAL_MODEL_PATH}")
     from mantis.architecture import Mantis8M
     mantis_model = Mantis8M(device=device)
-    mantis_model = mantis_model.from_pretrained("paris-noah/Mantis-8M")
+    mantis_model = mantis_model.from_pretrained(LOCAL_MODEL_PATH)  # 从本地加载模型
     
     # 创建带分类头的模型
     model = MantisWithHead(mantis_model, num_classes=2).to(device)
@@ -291,3 +301,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

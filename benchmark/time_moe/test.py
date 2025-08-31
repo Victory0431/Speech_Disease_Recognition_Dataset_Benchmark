@@ -1,19 +1,98 @@
+import time
+
+# 记录开始时间
+start_time = time.time()
+
+# 逐个导入并打印日志
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 os")
+    import os
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 os")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 os 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 random")
+    import random
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 random")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 random 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 torch")
+    import torch
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 torch，版本: {torch.__version__}")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 torch 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 torch.nn")
+    import torch.nn as nn
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 torch.nn")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 torch.nn 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 torch.nn.functional")
+    import torch.nn.functional as F
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 torch.nn.functional")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 torch.nn.functional 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 torch.utils.data")
+    from torch.utils.data import Dataset, DataLoader, random_split
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 torch.utils.data")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 torch.utils.data 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 torchaudio")
+    import torchaudio
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 torchaudio，版本: {torchaudio.__version__}")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 torchaudio 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 transformers")
+    from transformers import AutoModelForCausalLM
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 transformers")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 transformers 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 sklearn.metrics")
+    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 sklearn.metrics")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 sklearn.metrics 失败: {str(e)}")
+
+try:
+    print(f"[{time.time()-start_time:.2f}s] 开始导入 numpy")
+    import numpy as np
+    print(f"[{time.time()-start_time:.2f}s] 成功导入 numpy，版本: {np.__version__}")
+except Exception as e:
+    print(f"[{time.time()-start_time:.2f}s] 导入 numpy 失败: {str(e)}")
+
+print(f"\n[{time.time()-start_time:.2f}s] 所有包导入完成")
+
+
 # save as: train_time_moe_classifier.py
-import os
-import random
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.utils.data import Dataset, DataLoader, random_split
-import torchaudio
-from transformers import AutoModelForCausalLM
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-import numpy as np
+# import os
+# import random
+# import torch
+# import torch.nn as nn
+# import torch.nn.functional as F
+# from torch.utils.data import Dataset, DataLoader, random_split
+# import torchaudio
+# from transformers import AutoModelForCausalLM
+# from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+# import numpy as np
 
 # ========== CONFIG ==========
 ROOT_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/COVID_19_CNN/data"
 BACKBONE_PATH = "/mnt/data/test1/repo/Time-MoE/pretrain_model"  # or local hf cache path
-DEVICE = "cuda:2" if torch.cuda.is_available() else "cpu"
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 if torch.cuda.is_available():
     print('gpu')
 SEED = 42
@@ -176,11 +255,9 @@ def main():
     n_total = len(dataset)
     n_train = int(0.8 * n_total)
     n_val = n_total - n_train
-    print('dataset')
     train_set, val_set = random_split(dataset, [n_train, n_val])
     train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=NUM_WORKERS)
     val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=NUM_WORKERS)
-    print('data split done')
 
     model = TimeMoEClassifier(BACKBONE_PATH, num_classes=NUM_CLASSES, device=DEVICE)
 

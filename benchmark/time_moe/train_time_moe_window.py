@@ -4,6 +4,7 @@ import sys
 import random
 import torch
 import torch.nn as nn
+
 from pathlib import Path
 from torch.utils.data import DataLoader, random_split
 import numpy as np
@@ -25,10 +26,10 @@ SEED = 42
 
 # 数据与训练配置
 SAMPLE_RATE = 16000
-WINDOW_SIZE = 4096
-WINDOW_STRIDE = 2048
+WINDOW_SIZE = 2048
+WINDOW_STRIDE = 1024
 BATCH_SIZE = 8
-NUM_WORKERS = 2
+NUM_WORKERS = 8
 NUM_EPOCHS = 5
 LR_HEAD = 1e-3
 NUM_CLASSES = 2

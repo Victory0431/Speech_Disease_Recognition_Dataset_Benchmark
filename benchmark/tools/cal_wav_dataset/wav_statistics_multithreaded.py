@@ -141,7 +141,7 @@ def generate_report(statistics, output_file):
 def main():
     # 主目录（请确认路径正确）
     main_dir = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset"
-    main_dir = '/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/UAspeech'
+    main_dir = '/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/Parkinson_3700'
     if not os.path.isdir(main_dir):
         print(f"错误：目录 {main_dir} 不存在")
         return

@@ -172,3 +172,4 @@ class BaseTimeDataset(Dataset):
     def __getitem__(self, idx):
         """加载单个样本（音频+标签），子类实现"""
         raise NotImplementedError("子类必须实现 __getitem__ 方法，返回 (窗口/滑窗, 标签)")
+

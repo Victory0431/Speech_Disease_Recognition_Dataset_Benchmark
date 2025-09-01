@@ -40,10 +40,16 @@ def train_and_evaluate_time_moe(model, train_loader, val_loader, test_loader, cr
             # 移动数据到设备
             inputs = inputs.to(config.DEVICE)
             targets = targets.to(config.DEVICE)
+            # 打印3：模型输入类型
+            # if epoch == 0:
+            #     print(f"\n【模型输入】inputs dtype: {inputs.dtype}, targets dtype: {targets.dtype}")
+            #     print(f"【模型输入】inputs device: {inputs.device}, targets device: {targets.device}")
             
             # 前向传播与优化
             optimizer.zero_grad()
             logits, _ = model(inputs)  # Time-MoE返回(logits, hidden)
+            # if epoch == 0:
+            #     print(f"【模型输出】logits dtype: {logits.dtype}, logits device: {logits.device}")
             loss = criterion(logits, targets)
             loss.backward()
             optimizer.step()

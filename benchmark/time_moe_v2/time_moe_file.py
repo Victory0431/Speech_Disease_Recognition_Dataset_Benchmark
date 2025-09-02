@@ -35,13 +35,13 @@ from moe_dataset.speech_disease_dataset import SpeechDiseaseDataset
 # ===========================================
 # 1. 配置参数
 # ===========================================
-DEVICE = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")
 SAMPLE_RATE_ORIG = None  # 保留原始采样率
 SAMPLE_RATE = 8000
 WINDOW_LENGTH = 512      # L=512
 HOP_LENGTH = int(WINDOW_LENGTH * 0.7)  # 30% overlap → hop=358
 BATCH_SIZE = 2
-NUM_EPOCHS = 20
+NUM_EPOCHS = 5
 LEARNING_RATE = 1e-3
 N_MAX = None  # 稍后统计 95% 分位数
 DATA_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/Parkinson_3700"
@@ -54,54 +54,39 @@ FREEZE_BACKBONE = True  # 必须为 True
 
 
 # ===========================================
-# 5. 统计 N_max（95% 分位数）
-# ===========================================
-def get_n_max_from_dataset(dataset, q=95):
-    """从 Dataset 中统计窗口数量的 q% 分位数"""
-    lengths = []
-    for i in range(len(dataset)):
-        try:
-            # 只取长度，不加载完整数据
-            _, _, length = dataset[i]
-            lengths.append(length)
-        except Exception as e:
-            logger.warning(f"样本 {i} 获取长度失败: {e}")
-    
-    if not lengths:
-        raise ValueError("无法获取任何样本长度")
-    
-    return int(np.percentile(lengths, q))
-
-
-# ===========================================
 # 6. Collate Function（补零 + Mask）
 # ===========================================
+# 修改 collate_fn 中的 mask 处理
 def collate_fn(batch):
     global N_MAX
+    # print (N_MAX)
     windows_list = [item[0] for item in batch]
     labels = [item[1] for item in batch]
     lengths = [item[2] for item in batch]
 
-    # 补零或截断到 N_MAX
     padded_windows = []
     masks = []
+
     for windows, length in zip(windows_list, lengths):
         if length > N_MAX:
             windows = windows[:N_MAX]
-            mask = np.ones(N_MAX)
+            mask = torch.ones(N_MAX, dtype=torch.bool)  # bool
         else:
             pad_len = N_MAX - length
             padding = torch.zeros(pad_len, windows.shape[1])
             windows = torch.cat([windows, padding], dim=0)
-            mask = np.concatenate([np.ones(length), np.zeros(pad_len)])
+            mask = torch.cat([
+                torch.ones(length, dtype=torch.bool),
+                torch.zeros(pad_len, dtype=torch.bool)
+            ])
         padded_windows.append(windows)
         masks.append(mask)
 
-    padded_windows = torch.stack(padded_windows)  # [B, N_MAX, L]
-    masks = torch.FloatTensor(masks)  # [B, N_MAX]
-    labels = torch.LongTensor(labels)
+    x = torch.stack(padded_windows)     # [B, N_MAX, L]
+    y = torch.LongTensor(labels)        # [B]
+    mask = torch.stack(masks)           # [B, N_MAX], dtype=bool
 
-    return padded_windows, labels, masks
+    return x, y, mask
 
 
 # ===========================================
@@ -125,9 +110,13 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
         x, y, mask = x.to(device), y.to(device), mask.to(device)
         optimizer.zero_grad()
 
-        with autocast(device_type='cuda', dtype=torch.float16):
-            logits = model(x, mask)
-            loss = criterion(logits, y)
+        # with autocast(device_type='cuda', dtype=torch.float16):
+        logits = model(x, mask)
+        loss = criterion(logits, y)
+        if torch.isnan(loss):
+            print(f"❌ Loss is nan at batch {i}")
+            optimizer.zero_grad()
+            continue
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
@@ -147,9 +136,9 @@ def eval_model(model, dataloader, criterion, device):
     with torch.no_grad():
         for x, y, mask in tqdm(dataloader, desc="Evaluating"):
             x, y, mask = x.to(device), y.to(device), mask.to(device)
-            with autocast(device_type='cuda', dtype=torch.float16):
-                logits = model(x, mask)
-                loss = criterion(logits, y)
+            # with autocast(device_type='cuda', dtype=torch.float16):
+            logits = model(x, mask)
+            loss = criterion(logits, y)
             total_loss += loss.item()
             pred = logits.argmax(dim=1)
             correct += (pred == y).sum().item()

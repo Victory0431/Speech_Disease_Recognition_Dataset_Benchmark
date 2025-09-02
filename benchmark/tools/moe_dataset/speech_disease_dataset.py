@@ -72,6 +72,7 @@ class SpeechDiseaseDataset(Dataset):
         invalid_count = 0
 
         for class_name, label in self.label_map.items():
+            file_count = 0
             class_dir = os.path.join(self.data_root, class_name, class_name)
             if not os.path.exists(class_dir):
                 logger.warning(f"目录不存在: {class_dir}")
@@ -95,6 +96,9 @@ class SpeechDiseaseDataset(Dataset):
                     librosa.get_samplerate(file_path)
                     self.file_list.append(file_path)
                     self.labels.append(label)
+                    file_count += 1
+                    if file_count == 20:
+                        break
                     valid_count += 1
                 except Exception as e:
                     logger.warning(f"⚠️ 跳过损坏文件 {file_path}: {e}")

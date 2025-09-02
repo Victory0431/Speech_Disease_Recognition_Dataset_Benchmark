@@ -21,6 +21,12 @@ from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
 
+import logging
+
+# 配置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # 引入通用工具组件
 sys.path.append(str(Path(__file__).parent.parent / "tools"))
 from models.moe_classifier import DiseaseClassifier
@@ -50,94 +56,139 @@ FREEZE_BACKBONE = True  # 必须为 True
 # 2. 自定义数据集
 # ===========================================
 class SpeechDiseaseDataset(Dataset):
-    def __init__(self, file_list, labels, sample_rate=8000, 
-                 n_fft=512, hop_length=358):
-        self.file_list = file_list
-        self.labels = labels
+    def __init__(self, data_root, sample_rate=8000, n_fft=512, hop_length=358, label_map=None):
+        """
+        自动扫描目录，加载 .wav 文件，过滤异常
+        """
+        self.data_root = data_root
         self.sample_rate = sample_rate
         self.n_fft = n_fft
         self.hop_length = hop_length
 
-    def __len__(self):
-        return len(self.file_list)
+        if label_map is None:
+            label_map = {
+                'M_Con': 0,
+                'F_Con': 0,
+                'M_Dys': 1,
+                'F_Dys': 1
+            }
+        self.label_map = label_map
+
+        # 存储有效文件和标签
+        self.file_list = []
+        self.labels = []
+
+        self._scan_and_validate_files()
+
+    def _scan_and_validate_files(self):
+        """扫描所有类目录，加载 .wav 文件，跳过异常"""
+        valid_count = 0
+        invalid_count = 0
+
+        for class_name, label in self.label_map.items():
+            class_dir = os.path.join(self.data_root, class_name, class_name)
+            if not os.path.exists(class_dir):
+                logger.warning(f"目录不存在: {class_dir}")
+                continue
+
+            logger.info(f"扫描类别 '{class_name}' ({label}): {class_dir}")
+            for file in os.listdir(class_dir):
+                if not file.lower().endswith('.wav'):
+                    continue
+
+                file_path = os.path.join(class_dir, file)
+                
+                # 检查文件是否为空
+                if os.path.getsize(file_path) == 0:
+                    logger.warning(f"跳过空文件: {file_path}")
+                    invalid_count += 1
+                    continue
+
+                try:
+                    # 只读取 header，检查是否是有效 wav
+                    sr = librosa.get_samplerate(file_path)
+                    # 这里不真正加载，避免内存占用
+                    self.file_list.append(file_path)
+                    self.labels.append(label)
+                    valid_count += 1
+                except Exception as e:
+                    logger.warning(f"跳过损坏文件 {file_path}: {e}")
+                    invalid_count += 1
+
+        logger.info(f"✅ 扫描完成: 有效样本 {valid_count}，无效样本 {invalid_count}")
+        if valid_count == 0:
+            raise ValueError("没有找到任何有效音频文件！请检查数据路径和格式。")
 
     def load_audio(self, path):
-        wav, sr = librosa.load(path, sr=None)
-        if sr != self.sample_rate:
-            wav = librosa.resample(wav, orig_sr=sr, target_sr=self.sample_rate)
-        return wav
+        """安全加载音频，处理异常"""
+        try:
+            wav, sr = librosa.load(path, sr=None)
+            if sr != self.sample_rate:
+                wav = librosa.resample(wav, orig_sr=sr, target_sr=self.sample_rate)
+            return wav
+        except Exception as e:
+            logger.error(f"加载音频失败 {path}: {e}")
+            # 返回一个极短音频，split_into_windows 会补零
+            return np.zeros(1)
 
     def split_into_windows(self, wav):
-        """
-        将音频分割为重叠窗口
-        保证至少返回一个 [n_fft] 窗口（短音频补零）
-        """
-        wav = np.array(wav)
+        """分割为窗口，保证至少返回一个 [n_fft] 窗口"""
+        wav = np.array(wav, dtype=np.float32)
         
-        # 如果音频为空或无效，返回一个全零窗口
         if len(wav) == 0:
             return np.zeros((1, self.n_fft), dtype=np.float32)
 
         windows = []
-        
         # 正常滑动窗口
         for i in range(0, len(wav) - self.n_fft + 1, self.hop_length):
             window = wav[i:i + self.n_fft]
             windows.append(window)
         
-        # 如果没有生成任何窗口（音频太短）
+        # 如果没有生成窗口（音频太短）
         if len(windows) == 0:
-            # 取整个音频，右补零到 n_fft
             padded = np.zeros(self.n_fft, dtype=np.float32)
             copy_len = min(len(wav), self.n_fft)
             padded[:copy_len] = wav[:copy_len]
             windows.append(padded)
         else:
-            # 检查最后一个窗口是否覆盖到末尾
+            # 补最后一个窗口（对齐末尾）
             last_end = (len(windows) - 1) * self.hop_length + self.n_fft
             if last_end < len(wav):
-                # 补最后一个窗口（对齐末尾）
                 end = len(wav) - self.n_fft
                 window = wav[end:end + self.n_fft]
                 windows.append(window)
 
-        return np.array(windows)  # shape: [N, n_fft]
+        return np.array(windows)  # [N, n_fft]
+
+    def __len__(self):
+        return len(self.file_list)
 
     def __getitem__(self, idx):
         wav = self.load_audio(self.file_list[idx])
         windows = self.split_into_windows(wav)
         label = self.labels[idx]
-        return torch.FloatTensor(windows), label, len(windows)  # 返回窗口数用于统计
+        return torch.FloatTensor(windows), label, len(windows)
 
 
 
 # ===========================================
 # 5. 统计 N_max（95% 分位数）
 # ===========================================
-def get_n_max_from_dataset(dataset_dir, q=95):
-    file_list = []
-    for root, dirs, files in os.walk(dataset_dir):
-        for file in files:
-            if file.lower().endswith('.wav'):
-                file_list.append(os.path.join(root, file))
-
-    window_counts = []
-    for file_path in tqdm(file_list, desc="统计窗口数量"):
+def get_n_max_from_dataset(dataset, q=95):
+    """从 Dataset 中统计窗口数量的 q% 分位数"""
+    lengths = []
+    for i in range(len(dataset)):
         try:
-            wav, sr = librosa.load(file_path, sr=None)
-            if sr != SAMPLE_RATE:
-                wav = librosa.resample(wav, orig_sr=sr, target_sr=SAMPLE_RATE)
-            n_frames = len(wav)
-            n_windows = (n_frames - WINDOW_LENGTH) // HOP_LENGTH + 1
-            if (n_frames - WINDOW_LENGTH) % HOP_LENGTH != 0:
-                n_windows += 1
-            window_counts.append(n_windows)
+            # 只取长度，不加载完整数据
+            _, _, length = dataset[i]
+            lengths.append(length)
         except Exception as e:
-            print(f"Error processing {file_path}: {e}")
-
-    n_max = int(np.percentile(window_counts, q))
-    print(f"95% 分位数 N_max = {n_max}")
-    return n_max
+            logger.warning(f"样本 {i} 获取长度失败: {e}")
+    
+    if not lengths:
+        raise ValueError("无法获取任何样本长度")
+    
+    return int(np.percentile(lengths, q))
 
 
 # ===========================================
@@ -234,58 +285,39 @@ def main():
 
     print(f"使用设备: {DEVICE}")
 
-    # Step 1: 统计 N_max
+    # Step 1: 统计 N_max（使用新 Dataset）
     print("正在统计窗口数量分布...")
-    N_MAX = get_n_max_from_dataset(DATA_ROOT, q=95)
-    print(f"设置 N_max = {N_MAX}")
+    temp_dataset = SpeechDiseaseDataset(DATA_ROOT, SAMPLE_RATE, WINDOW_LENGTH, HOP_LENGTH)
+    N_MAX = get_n_max_from_dataset(temp_dataset, q=95)  # 假设你有一个函数从 dataset 取 N_max
+    print(f"95% 分位数 N_max = {N_MAX}")
+    print(f"✅ 设置 N_max = {N_MAX}")
 
-    # Step 2: 构建文件列表和标签
-    file_list = []
-    labels = []
-
-    label_map = {
-        'M_Con': 0,
-        'F_Con': 0,
-        'M_Dys': 1,
-        'F_Dys': 1
-    }
-
-    for class_name, label in label_map.items():
-
-        class_dir = os.path.join(DATA_ROOT, class_name)
-        class_dir = os.path.join(class_dir, class_name)
-        print(len(os.listdir(class_dir)))
-        for file in os.listdir(class_dir):
-            if file.lower().endswith('.wav'):
-                file_list.append(os.path.join(class_dir, file))
-                labels.append(label)
-
-    print(f"总样本数: {len(file_list)}")
+    # Step 2: 创建完整数据集
+    dataset = SpeechDiseaseDataset(DATA_ROOT, SAMPLE_RATE, WINDOW_LENGTH, HOP_LENGTH)
+    print(f"总样本数: {len(dataset)}")
 
     # Step 3: 划分训练/验证/测试集 (8:1:1)
-    dataset = SpeechDiseaseDataset(file_list, labels, SAMPLE_RATE, WINDOW_LENGTH, HOP_LENGTH)
     train_size = int(0.8 * len(dataset))
     val_size = int(0.1 * len(dataset))
     test_size = len(dataset) - train_size - val_size
 
-    train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
+    train_dataset, val_dataset, test_dataset = random_split(
+        dataset, [train_size, val_size, test_size],
+        generator=torch.Generator().manual_seed(42)  # 固定划分
+    )
 
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
     # Step 4: 初始化模型
-    # backbone = TimeMoEBackbone(input_dim=WINDOW_LENGTH, d_model=384, n_layers=12, n_heads=12)
-    # model = DiseaseClassifier(backbone, num_classes=2, d_model=384)
-    # 使用你的预训练 Time-MoE
     model = DiseaseClassifier(
         backbone_path=BACKBONE_PATH,
         num_classes=NUM_CLASSES,
         device=DEVICE
     )
     model = model.to(DEVICE)
-    # 冻结主干
-    model.backbone.requires_grad_(False)
+    model.backbone.requires_grad_(False)  # 冻结主干
 
     # Step 5: 优化器 & 损失
     optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
@@ -310,7 +342,6 @@ def main():
     model.load_state_dict(torch.load("best_model.pth"))
     test_loss, test_acc = eval_model(model, test_loader, criterion, DEVICE)
     print(f"\n测试集准确率: {test_acc:.4f}")
-
 
 if __name__ == "__main__":
     main()

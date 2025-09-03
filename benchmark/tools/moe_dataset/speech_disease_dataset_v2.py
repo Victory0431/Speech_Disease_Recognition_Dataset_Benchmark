@@ -95,7 +95,7 @@ class SpeechDiseaseDataset(Dataset):
             logger.info(f"🔍 扫描类别 '{class_name}' (label={label}): {class_dir}")
             for file in os.listdir(class_dir):
                 count_file += 1
-                if count_file == 80:
+                if count_file == 150:
                     break
                 if not file.lower().endswith('.wav'):
                     continue

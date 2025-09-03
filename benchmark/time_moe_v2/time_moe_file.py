@@ -29,14 +29,15 @@ logger = logging.getLogger(__name__)
 
 # 引入通用工具组件
 sys.path.append(str(Path(__file__).parent.parent / "tools"))
-from models.moe_classifier import DiseaseClassifier
+# from models.moe_classifier import DiseaseClassifier
+from models.moe_classifier_unfreeze import DiseaseClassifier
 # from moe_dataset.speech_disease_dataset import SpeechDiseaseDataset
 from moe_dataset.speech_disease_dataset_v2 import SpeechDiseaseDataset
 
 # ===========================================
 # 1. 配置参数
 # ===========================================
-DEVICE = torch.device("cuda:6" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
 SAMPLE_RATE_ORIG = None  # 保留原始采样率
 SAMPLE_RATE = 8000
 WINDOW_LENGTH = 512      # L=512
@@ -204,114 +205,6 @@ def eval_model(model, dataloader, criterion, device):
     return total_loss / len(dataloader), acc
 
 
-# ===========================================
-# 8. 主函数
-# ===========================================
-# def main():
-#     global N_MAX
-
-#     print(f"使用设备: {DEVICE}")
-
-#     # Step 1: 创建完整数据集并统计 N_max（使用新 Dataset）
-#     print("正在统计窗口数量分布...")
-#     dataset = SpeechDiseaseDataset(DATA_ROOT, SAMPLE_RATE, WINDOW_LENGTH, HOP_LENGTH)
-#     N_MAX = dataset.get_recommended_N_max(q=95)
-#     print(f"95% 分位数 N_max = {N_MAX}")
-#     print(f"✅ 设置 N_max = {N_MAX}")
-
-#     print(f"总样本数: {len(dataset)}")
-
-#     # Step 3: 划分训练/验证/测试集 (8:1:1)
-#     train_size = int(0.8 * len(dataset))
-#     val_size = int(0.1 * len(dataset))
-#     test_size = len(dataset) - train_size - val_size
-
-#     train_dataset, val_dataset, test_dataset = random_split(
-#         dataset, [train_size, val_size, test_size],
-#         generator=torch.Generator().manual_seed(42)  # 固定划分
-#     )
-
-#     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn,num_workers=NUM_WORKERS)
-#     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn,num_workers=NUM_WORKERS)
-#     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn,num_workers=NUM_WORKERS)
-
-#     # Step 4: 初始化模型
-#     model = DiseaseClassifier(
-#         backbone_path=BACKBONE_PATH,
-#         num_classes=NUM_CLASSES,
-#         device=DEVICE
-#     )
-#     model = model.to(DEVICE)
-#     model.backbone.requires_grad_(False)  # 冻结主干
-
-#     # Step 5: 优化器 & 损失
-#     optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
-#     criterion = nn.CrossEntropyLoss()
-
-#     # Step 6: 训练循环
-#     best_val_acc = 0.0
-#     for epoch in range(NUM_EPOCHS):
-#         print(f"\nEpoch {epoch+1}/{NUM_EPOCHS}")
-#         train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
-#         val_loss, val_acc = eval_model(model, val_loader, criterion, DEVICE)
-
-#         print(f"Train Loss: {train_loss:.4f}")
-#         print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
-
-#         if val_acc > best_val_acc:
-#             best_val_acc = val_acc
-#             torch.save(model.state_dict(), "best_model.pth")
-#             print(f"保存最佳模型，验证准确率: {best_val_acc:.4f}")
-
-#     # Step 7: 测试
-#     model.load_state_dict(torch.load("best_model.pth"))
-#     test_loss, test_acc = eval_model(model, test_loader, criterion, DEVICE)
-#     print(f"\n测试集准确率: {test_acc:.4f}")
-
-# def main():
-#     print(f"使用设备: {DEVICE}")
-
-#     # 一行代码获取所有 dataloader + N_MAX
-#     train_loader, val_loader, test_loader, N_MAX = SpeechDiseaseDataset.get_dataloaders(
-#         data_root=DATA_ROOT,
-#         sample_rate=SAMPLE_RATE,
-#         n_fft=WINDOW_LENGTH,
-#         hop_length=HOP_LENGTH,
-#         batch_size=BATCH_SIZE,
-#         num_workers=NUM_WORKERS,
-#         q_percentile=95,
-#         seed=42
-#     )
-
-#     # Step 4: 初始化模型
-#     model = DiseaseClassifier(
-#         backbone_path=BACKBONE_PATH,
-#         num_classes=NUM_CLASSES,
-#         device=DEVICE
-#     )
-#     model = model.to(DEVICE)
-#     model.backbone.requires_grad_(False)  # 冻结主干
-
-#     # Step 5: 优化器 & 损失
-#     optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
-#     criterion = nn.CrossEntropyLoss()
-
-#     # Step 6: 训练循环
-#     best_val_acc = 0.0
-#     for epoch in range(NUM_EPOCHS):
-#         print(f"\nEpoch {epoch+1}/{NUM_EPOCHS}")
-#         train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
-#         val_loss, val_acc = eval_model(model, val_loader, criterion, DEVICE)
-
-#         if val_acc > best_val_acc:
-#             best_val_acc = val_acc
-#             torch.save(model.state_dict(), "best_model.pth")
-#             print(f"💾 保存最佳模型，验证准确率: {val_acc:.4f}")
-
-#     # 测试
-#     model.load_state_dict(torch.load("best_model.pth"))
-#     test_acc = eval_model(model, test_loader, criterion, DEVICE)[1]
-#     print(f"🧪 测试集准确率: {test_acc:.4f}")
 
 def main():
     print(f"&#128293; 使用设备: {DEVICE}")
@@ -336,15 +229,30 @@ def main():
     model = DiseaseClassifier(
         backbone_path=BACKBONE_PATH,
         num_classes=NUM_CLASSES,
-        device=DEVICE
+        device=DEVICE,
+        freeze_backbone=False,  # 不冻结主干
+        unfreeze_last_n=1  # 解冻最后2层（可根据效果调整1~3）
     )
     model = model.to(DEVICE)
-    model.backbone.requires_grad_(False)  # 冻结主干
-    print(f"&#127959;️ 模型架构: {model}")
-    print(f"&#9876;️ 可训练参数数量: {sum(p.numel() for p in model.classifier.parameters())}\n")
+    # model.backbone.requires_grad_(False)  # 冻结主干
+    # print(f"&#127959;️ 模型架构: {model}")
+    # print(f"&#9876;️ 可训练参数数量: {sum(p.numel() for p in model.classifier.parameters())}\n")
+
+    # 打印可训练参数（验证解冻是否生效）
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"&#9876;️ 总可训练参数数量: {trainable_params}")
+    # 可单独打印主干和解冻层的参数数量，确认解冻是否正确
+    backbone_trainable = sum(p.numel() for p in model.backbone.parameters() if p.requires_grad)
+    print(f"&#9876;️ 主干可训练参数数量: {backbone_trainable}")
+    classifier_trainable = sum(p.numel() for p in model.classifier.parameters() if p.requires_grad)
+    print(f"&#9876;️ 分类头可训练参数数量: {classifier_trainable}\n")
 
     # Step 5: 优化器 & 损失
-    optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
+    # optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam([
+        {'params': model.backbone.parameters(), 'lr': 1e-5},  # 主干解冻层
+        {'params': model.classifier.parameters(), 'lr': 2e-4}  # 分类头
+    ])
     criterion = nn.CrossEntropyLoss()
 
     # Step 6: 训练循环

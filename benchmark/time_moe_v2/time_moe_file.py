@@ -95,7 +95,7 @@ def collate_fn(batch):
 # ===========================================
 # 7. 训练与评估
 # ===========================================
-def train_epoch(model, dataloader, optimizer, criterion, device):
+def train_epoch_old(model, dataloader, optimizer, criterion, device):
     model.train()
     total_loss = 0.0
     scaler = GradScaler()
@@ -129,6 +129,44 @@ def train_epoch(model, dataloader, optimizer, criterion, device):
 
     return total_loss / len(dataloader)
 
+def train_epoch(model, dataloader, optimizer, criterion, device,
+                accumulation_steps=8):          # K 次 micro-batch 累积
+    model.train()
+    total_loss = 0.0
+    scaler = GradScaler()
+
+    # 1. 先清零，准备累积
+    optimizer.zero_grad()
+
+    for step, (x, y, mask) in enumerate(tqdm(dataloader, desc="Training")):
+        # 2. 把数据搬到 GPU
+        x, y, mask = x.to(device), y.to(device), mask.to(device)
+
+        # 3. 前向 + 计算 loss（micro-batch = 1）
+        logits = model(x, mask)
+        loss = criterion(logits, y)
+
+        # 4. 按累积步数缩放，防止梯度爆炸
+        loss = loss / accumulation_steps
+
+        # 5. 反向传播（梯度累积）
+        scaler.scale(loss).backward()
+
+        # 6. 统计真实 loss（用于打印 / 日志）
+        total_loss += loss.item() * accumulation_steps
+
+        # 7. 每累积 K 步，统一更新一次参数
+        if (step + 1) % accumulation_steps == 0 or (step + 1) == len(dataloader):
+            # 可选：梯度裁剪
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+            scaler.step(optimizer)   # 真正更新
+            scaler.update()
+            optimizer.zero_grad()    # 清零，准备下一轮累积
+
+    # 8. 返回平均 loss
+    return total_loss / len(dataloader)
 
 def eval_model(model, dataloader, criterion, device):
     model.eval()
@@ -231,7 +269,7 @@ def main():
         num_classes=NUM_CLASSES,
         device=DEVICE,
         freeze_backbone=False,  # 不冻结主干
-        unfreeze_last_n=1  # 解冻最后2层（可根据效果调整1~3）
+        unfreeze_last_n=0  # 解冻最后2层（可根据效果调整1~3）
     )
     model = model.to(DEVICE)
     # model.backbone.requires_grad_(False)  # 冻结主干

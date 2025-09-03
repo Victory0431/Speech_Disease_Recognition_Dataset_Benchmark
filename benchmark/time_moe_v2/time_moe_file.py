@@ -30,18 +30,20 @@ logger = logging.getLogger(__name__)
 # 引入通用工具组件
 sys.path.append(str(Path(__file__).parent.parent / "tools"))
 from models.moe_classifier import DiseaseClassifier
-from moe_dataset.speech_disease_dataset import SpeechDiseaseDataset
+# from moe_dataset.speech_disease_dataset import SpeechDiseaseDataset
+from moe_dataset.speech_disease_dataset_v2 import SpeechDiseaseDataset
 
 # ===========================================
 # 1. 配置参数
 # ===========================================
-DEVICE = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:6" if torch.cuda.is_available() else "cpu")
 SAMPLE_RATE_ORIG = None  # 保留原始采样率
 SAMPLE_RATE = 8000
 WINDOW_LENGTH = 512      # L=512
 HOP_LENGTH = int(WINDOW_LENGTH * 0.7)  # 30% overlap → hop=358
 BATCH_SIZE = 2
-NUM_EPOCHS = 5
+NUM_EPOCHS = 10
+NUM_WORKERS = 16
 LEARNING_RATE = 1e-3
 N_MAX = None  # 稍后统计 95% 分位数
 DATA_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/Parkinson_3700"
@@ -133,51 +135,202 @@ def eval_model(model, dataloader, criterion, device):
     correct = 0
     total = 0
 
+    # 用于收集所有预测和真实标签
+    all_preds = []
+    all_labels = []
+    all_logits = []
+
     with torch.no_grad():
-        for x, y, mask in tqdm(dataloader, desc="Evaluating"):
+        for batch_idx, (x, y, mask) in enumerate(tqdm(dataloader, desc="Evaluating")):
             x, y, mask = x.to(device), y.to(device), mask.to(device)
-            # with autocast(device_type='cuda', dtype=torch.float16):
-            logits = model(x, mask)
+            logits = model(x, mask)  # [B, 2]
             loss = criterion(logits, y)
             total_loss += loss.item()
-            pred = logits.argmax(dim=1)
+
+            pred = logits.argmax(dim=1)  # [B]
             correct += (pred == y).sum().item()
             total += y.size(0)
 
+            # 收集当前 batch 的结果
+            all_logits.append(logits.cpu())
+            all_preds.append(pred.cpu())
+            all_labels.append(y.cpu())
+
+            # 🔥 打印第一个 batch 的详细信息（仅一次）
+            if batch_idx == 0:
+                print("\n" + "="*50)
+                print("🔍 调试信息：第一个验证 batch")
+                print("="*50)
+                print(f"输入 x.shape: {x.shape}")          # 应为 [B, N_MAX, 512] 或 [B, N_MAX, 1]
+                print(f"标签 y: {y.tolist()}")
+                print(f"logits: {logits.tolist()}")
+                print(f"预测 pred: {pred.tolist()}")
+                print(f"损失 loss: {loss.item():.4f}")
+                print(f"该 batch 准确率: {(pred == y).float().mean().item():.4f}")
+                print(f"logits 差值 |logits[:,0] - logits[:,1]|: {(logits[:,0] - logits[:,1]).abs().tolist()}")
+                print("="*50)
+
+    # 拼接所有 batch
+    all_logits = torch.cat(all_logits)
+    all_preds = torch.cat(all_preds)
+    all_labels = torch.cat(all_labels)
+
     acc = correct / total
+
+    # 🔥 打印全局统计
+    print("\n" + "="*50)
+    print("📊 验证集全局统计")
+    print("="*50)
+    print(f"总样本数: {total}")
+    print(f"真实标签分布: 类别 0 = {all_labels.eq(0).sum().item()}, 类别 1 = {all_labels.eq(1).sum().item()}")
+    print(f"模型预测分布: 预测 0 = {all_preds.eq(0).sum().item()}, 预测 1 = {all_preds.eq(1).sum().item()}")
+    
+    # 检查是否所有预测都一样
+    if all_preds.unique().size(0) == 1:
+        print(f"🚨 警告：模型所有预测均为类别 {all_preds[0].item()}！")
+    else:
+        print("✅ 预测结果有变化")
+
+    # 查看 logits 分布
+    print(f"logits 均值: {all_logits.mean().item():.4f}, 标准差: {all_logits.std().item():.4f}")
+    print(f"logits 第0类均值: {all_logits[:,0].mean().item():.4f}, 第1类均值: {all_logits[:,1].mean().item():.4f}")
+
+    # 查看是否 logits 差异极小（说明模型没信心）
+    logit_diff = (all_logits[:,0] - all_logits[:,1]).abs()
+    print(f"logits 差值 |logit0 - logit1| 均值: {logit_diff.mean().item():.4f}")
+    if logit_diff.mean() < 0.1:
+        print("⚠️ 警告：logits 差值极小，模型几乎无法区分两类！")
+
     return total_loss / len(dataloader), acc
 
 
 # ===========================================
 # 8. 主函数
 # ===========================================
+# def main():
+#     global N_MAX
+
+#     print(f"使用设备: {DEVICE}")
+
+#     # Step 1: 创建完整数据集并统计 N_max（使用新 Dataset）
+#     print("正在统计窗口数量分布...")
+#     dataset = SpeechDiseaseDataset(DATA_ROOT, SAMPLE_RATE, WINDOW_LENGTH, HOP_LENGTH)
+#     N_MAX = dataset.get_recommended_N_max(q=95)
+#     print(f"95% 分位数 N_max = {N_MAX}")
+#     print(f"✅ 设置 N_max = {N_MAX}")
+
+#     print(f"总样本数: {len(dataset)}")
+
+#     # Step 3: 划分训练/验证/测试集 (8:1:1)
+#     train_size = int(0.8 * len(dataset))
+#     val_size = int(0.1 * len(dataset))
+#     test_size = len(dataset) - train_size - val_size
+
+#     train_dataset, val_dataset, test_dataset = random_split(
+#         dataset, [train_size, val_size, test_size],
+#         generator=torch.Generator().manual_seed(42)  # 固定划分
+#     )
+
+#     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn,num_workers=NUM_WORKERS)
+#     val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn,num_workers=NUM_WORKERS)
+#     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn,num_workers=NUM_WORKERS)
+
+#     # Step 4: 初始化模型
+#     model = DiseaseClassifier(
+#         backbone_path=BACKBONE_PATH,
+#         num_classes=NUM_CLASSES,
+#         device=DEVICE
+#     )
+#     model = model.to(DEVICE)
+#     model.backbone.requires_grad_(False)  # 冻结主干
+
+#     # Step 5: 优化器 & 损失
+#     optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
+#     criterion = nn.CrossEntropyLoss()
+
+#     # Step 6: 训练循环
+#     best_val_acc = 0.0
+#     for epoch in range(NUM_EPOCHS):
+#         print(f"\nEpoch {epoch+1}/{NUM_EPOCHS}")
+#         train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
+#         val_loss, val_acc = eval_model(model, val_loader, criterion, DEVICE)
+
+#         print(f"Train Loss: {train_loss:.4f}")
+#         print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
+
+#         if val_acc > best_val_acc:
+#             best_val_acc = val_acc
+#             torch.save(model.state_dict(), "best_model.pth")
+#             print(f"保存最佳模型，验证准确率: {best_val_acc:.4f}")
+
+#     # Step 7: 测试
+#     model.load_state_dict(torch.load("best_model.pth"))
+#     test_loss, test_acc = eval_model(model, test_loader, criterion, DEVICE)
+#     print(f"\n测试集准确率: {test_acc:.4f}")
+
+# def main():
+#     print(f"使用设备: {DEVICE}")
+
+#     # 一行代码获取所有 dataloader + N_MAX
+#     train_loader, val_loader, test_loader, N_MAX = SpeechDiseaseDataset.get_dataloaders(
+#         data_root=DATA_ROOT,
+#         sample_rate=SAMPLE_RATE,
+#         n_fft=WINDOW_LENGTH,
+#         hop_length=HOP_LENGTH,
+#         batch_size=BATCH_SIZE,
+#         num_workers=NUM_WORKERS,
+#         q_percentile=95,
+#         seed=42
+#     )
+
+#     # Step 4: 初始化模型
+#     model = DiseaseClassifier(
+#         backbone_path=BACKBONE_PATH,
+#         num_classes=NUM_CLASSES,
+#         device=DEVICE
+#     )
+#     model = model.to(DEVICE)
+#     model.backbone.requires_grad_(False)  # 冻结主干
+
+#     # Step 5: 优化器 & 损失
+#     optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
+#     criterion = nn.CrossEntropyLoss()
+
+#     # Step 6: 训练循环
+#     best_val_acc = 0.0
+#     for epoch in range(NUM_EPOCHS):
+#         print(f"\nEpoch {epoch+1}/{NUM_EPOCHS}")
+#         train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
+#         val_loss, val_acc = eval_model(model, val_loader, criterion, DEVICE)
+
+#         if val_acc > best_val_acc:
+#             best_val_acc = val_acc
+#             torch.save(model.state_dict(), "best_model.pth")
+#             print(f"💾 保存最佳模型，验证准确率: {val_acc:.4f}")
+
+#     # 测试
+#     model.load_state_dict(torch.load("best_model.pth"))
+#     test_acc = eval_model(model, test_loader, criterion, DEVICE)[1]
+#     print(f"🧪 测试集准确率: {test_acc:.4f}")
+
 def main():
-    global N_MAX
+    print(f"&#128293; 使用设备: {DEVICE}")
+    print("------------------")
+    print(f"&#128230; 数据配置: batch_size={BATCH_SIZE}, workers={NUM_WORKERS}")
+    print(f"&#127925; 音频参数: sample_rate={SAMPLE_RATE}, window={WINDOW_LENGTH}, hop={HOP_LENGTH}")
+    print("------------------\n")
 
-    print(f"使用设备: {DEVICE}")
-
-    # Step 1: 创建完整数据集并统计 N_max（使用新 Dataset）
-    print("正在统计窗口数量分布...")
-    dataset = SpeechDiseaseDataset(DATA_ROOT, SAMPLE_RATE, WINDOW_LENGTH, HOP_LENGTH)
-    N_MAX = dataset.get_recommended_N_max(q=95)
-    print(f"95% 分位数 N_max = {N_MAX}")
-    print(f"✅ 设置 N_max = {N_MAX}")
-
-    print(f"总样本数: {len(dataset)}")
-
-    # Step 3: 划分训练/验证/测试集 (8:1:1)
-    train_size = int(0.8 * len(dataset))
-    val_size = int(0.1 * len(dataset))
-    test_size = len(dataset) - train_size - val_size
-
-    train_dataset, val_dataset, test_dataset = random_split(
-        dataset, [train_size, val_size, test_size],
-        generator=torch.Generator().manual_seed(42)  # 固定划分
+    # 一行代码获取所有 dataloader + N_MAX
+    train_loader, val_loader, test_loader, N_MAX = SpeechDiseaseDataset.get_dataloaders(
+        data_root=DATA_ROOT,
+        sample_rate=SAMPLE_RATE,
+        n_fft=WINDOW_LENGTH,
+        hop_length=HOP_LENGTH,
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        q_percentile=95,
+        seed=42
     )
-
-    train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
-    test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
 
     # Step 4: 初始化模型
     model = DiseaseClassifier(
@@ -187,6 +340,8 @@ def main():
     )
     model = model.to(DEVICE)
     model.backbone.requires_grad_(False)  # 冻结主干
+    print(f"&#127959;️ 模型架构: {model}")
+    print(f"&#9876;️ 可训练参数数量: {sum(p.numel() for p in model.classifier.parameters())}\n")
 
     # Step 5: 优化器 & 损失
     optimizer = optim.Adam(model.classifier.parameters(), lr=LEARNING_RATE)
@@ -195,22 +350,30 @@ def main():
     # Step 6: 训练循环
     best_val_acc = 0.0
     for epoch in range(NUM_EPOCHS):
-        print(f"\nEpoch {epoch+1}/{NUM_EPOCHS}")
+        print(f"\n════════ EPOCH {epoch+1}/{NUM_EPOCHS} ════════")
+        
+        # 训练阶段
         train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
+        print(f"&#128200; 训练集损失: {train_loss:.4f}")
+        
+        # 验证阶段
         val_loss, val_acc = eval_model(model, val_loader, criterion, DEVICE)
-
-        print(f"Train Loss: {train_loss:.4f}")
-        print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
-
+        print(f"&#128269; 验证集损失: {val_loss:.4f} | 准确率: {val_acc:.4f}")
+        
+        # 保存最佳模型
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), "best_model.pth")
-            print(f"保存最佳模型，验证准确率: {best_val_acc:.4f}")
-
-    # Step 7: 测试
+            print(f"&#128190; 保存最佳模型 → 验证准确率: {val_acc:.4f}")
+    
+    # 测试阶段
     model.load_state_dict(torch.load("best_model.pth"))
     test_loss, test_acc = eval_model(model, test_loader, criterion, DEVICE)
-    print(f"\n测试集准确率: {test_acc:.4f}")
+    print("\n========== 最终测试结果 ==========")
+    print(f"&#129514; 测试集损失: {test_loss:.4f}")
+    print(f"&#127942; 测试集准确率: {test_acc:.4f}")
+    print("===============================")
+
 
 if __name__ == "__main__":
     main()

@@ -79,10 +79,19 @@ class DiseaseClassifier(nn.Module):
 
         # Masked 池化（跨窗口）
         if mask is not None:
-            window_features = window_features * mask.unsqueeze(-1)
-            pooled = window_features.sum(dim=1) / (mask.sum(dim=1, keepdim=True) + 1e-8)
+            # 扩展 mask 到特征维度
+            mask_expanded = mask.unsqueeze(-1)  # [B, N, 1]
+            
+            # 加权求和
+            sum_features = (window_features * mask_expanded).sum(dim=1)  # [B, D]
+            
+            # 安全归一化：确保分母不为 0
+            num_valid = mask.sum(dim=1, keepdim=True)  # [B, 1]
+            num_valid = num_valid.clamp(min=1.0)  # 强制最小为 1，防止除零
+            
+            pooled = sum_features / num_valid  # [B, D]
         else:
-            pooled = window_features.mean(dim=1)  # [B, D]
+            pooled = window_features.mean(dim=1)
 
         logits = self.classifier(pooled)
         return logits

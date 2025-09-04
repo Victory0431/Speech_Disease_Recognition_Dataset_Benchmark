@@ -37,13 +37,13 @@ from moe_dataset.speech_disease_dataset_v2 import SpeechDiseaseDataset
 # ===========================================
 # 1. 配置参数
 # ===========================================
-DEVICE = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")
 SAMPLE_RATE_ORIG = None  # 保留原始采样率
 SAMPLE_RATE = 8000
 WINDOW_LENGTH = 512      # L=512
 HOP_LENGTH = int(WINDOW_LENGTH * 0.7)  # 30% overlap → hop=358
 BATCH_SIZE = 2
-NUM_EPOCHS = 10
+NUM_EPOCHS = 100
 NUM_WORKERS = 16
 LEARNING_RATE = 1e-3
 N_MAX = None  # 稍后统计 95% 分位数
@@ -299,7 +299,7 @@ def main():
         print(f"\n════════ EPOCH {epoch+1}/{NUM_EPOCHS} ════════")
         
         # 训练阶段
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE)
+        train_loss = train_epoch(model, train_loader, optimizer, criterion, DEVICE,accumulation_steps=16)
         print(f"&#128200; 训练集损失: {train_loss:.4f}")
         
         # 验证阶段

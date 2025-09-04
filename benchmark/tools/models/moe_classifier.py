@@ -58,7 +58,7 @@ class DiseaseClassifier(nn.Module):
             nn.LayerNorm(d_model),
             nn.Linear(d_model, d_model // 2),
             nn.ReLU(),
-            nn.Dropout(0.3),
+            nn.Dropout(0.1),
             nn.Linear(d_model // 2, num_classes)
         )
 

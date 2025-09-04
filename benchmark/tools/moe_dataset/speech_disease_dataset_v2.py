@@ -95,7 +95,7 @@ class SpeechDiseaseDataset(Dataset):
             logger.info(f"🔍 扫描类别 '{class_name}' (label={label}): {class_dir}")
             for file in os.listdir(class_dir):
                 count_file += 1
-                if count_file == 250:
+                if count_file == 100:
                     break
                 if not file.lower().endswith('.wav'):
                     continue
@@ -124,6 +124,8 @@ class SpeechDiseaseDataset(Dataset):
             wav, sr = librosa.load(path, sr=None)
             if sr != self.sample_rate:
                 wav = librosa.resample(wav, orig_sr=sr, target_sr=self.sample_rate)
+            # ✅ 峰值归一化：缩放到 [-1, 1]
+            wav = wav / (np.max(np.abs(wav)) + 1e-8)  # 防止除零
             return wav
         except Exception as e:
             logger.error(f"❌ 加载音频失败 {path}: {e}")

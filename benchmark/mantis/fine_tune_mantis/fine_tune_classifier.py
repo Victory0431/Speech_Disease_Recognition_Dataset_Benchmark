@@ -1,7 +1,9 @@
 # File: train_mantis.py
 import os
 import torch
+import sys
 import numpy as np
+from pathlib import Path
 from tqdm import tqdm
 import logging
 from sklearn.metrics import accuracy_score
@@ -11,15 +13,15 @@ from mantis.architecture import Mantis8M
 from mantis.trainer import MantisTrainer
 
 # 引入通用工具组件
-sys.path.append(str(Path(__file__).parent.parent / "tools"))
+sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 # from models.moe_classifier import DiseaseClassifier
 # from models.moe_classifier_unfreeze_v2 import DiseaseClassifier
 # from moe_dataset.speech_disease_dataset import SpeechDiseaseDataset
 from moe_dataset.speech_disease_dataset_v2 import SpeechDiseaseDataset
 
 # 配置
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
-DATA_ROOT = "/path/to/your/dataset"  # ⚠️ 替换为你的实际路径
+DEVICE = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
+DATA_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/Parkinson_3700"  # ⚠️ 替换为你的实际路径
 MODEL_SAVE_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mantis/model"
 os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
 
@@ -94,14 +96,14 @@ def main():
     # Step 2: 加载 Mantis-8M 模型
     logger.info("📥 加载 Mantis-8M 预训练模型...")
     network = Mantis8M(device=DEVICE)
-    network = network.from_pretrained("paris-noah/Mantis-8M")
+    network = network.from_pretrained(MODEL_SAVE_DIR)
     logger.info("✅ 模型加载完成")
 
     # Step 3: 初始化 Trainer
     model = MantisTrainer(
         device=DEVICE,
         network=network,
-        num_classes=NUM_CLASSES  # 显式指定分类头输出维度
+        # num_classes=NUM_CLASSES  # 显式指定分类头输出维度
     )
 
     # Step 4: 微调

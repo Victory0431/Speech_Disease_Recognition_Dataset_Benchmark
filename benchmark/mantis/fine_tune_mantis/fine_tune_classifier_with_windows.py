@@ -45,64 +45,6 @@ HOP_LENGTH = 256  # 可调整步长
 TARGET_LENGTH = 512  # Mantis 输入长度
 POOLING_METHOD = 'mean'  # 'mean', 'max'
 
-def plot_f1_auc_curves(f1_scores, auc_scores, title='F1 and AUC Curves'):
-    plt.plot(f1_scores, label='Test F1 Score')
-    plt.plot(auc_scores, label='Test AUC')
-    plt.title(title)
-    plt.xlabel('Epoch')
-    plt.ylabel('Score')
-    plt.legend()
-    plt.show()
-
-def plot_accuracy_curves(accuracies, title='Accuracy Curves'):
-    plt.plot(accuracies, label='Test Accuracy')
-    plt.title(title)
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy (%)')
-    plt.legend()
-    plt.show()
-
-def plot_confusion_matrix(y_true, y_pred, classes, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues):
-    """
-    This function prints and plots the confusion matrix.
-    Normalization can be applied by setting `normalize=True`.
-    """
-    cm = confusion_matrix(y_true, y_pred)
-    if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-        print("Normalized confusion matrix")
-    else:
-        print('Confusion matrix, without normalization')
-
-    print(cm)
-
-    fig, ax = plt.subplots()
-    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
-    ax.figure.colorbar(im, ax=ax)
-    # We want to show all ticks...
-    ax.set(xticks=np.arange(cm.shape[1]),
-           yticks=np.arange(cm.shape[0]),
-           # ... and label them with the respective list entries
-           xticklabels=classes, yticklabels=classes,
-           title=title,
-           ylabel='True label',
-           xlabel='Predicted label')
-
-    # Rotate the tick labels and set their alignment.
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-             rotation_mode="anchor")
-
-    # Loop over data dimensions and create text annotations.
-    fmt = '.2f' if normalize else 'd'
-    thresh = cm.max() / 2.
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            ax.text(j, i, format(cm[i, j], fmt),
-                    ha="center", va="center",
-                    color="white" if cm[i, j] > thresh else "black")
-    fig.tight_layout()
-    return ax
-
 
 def extract_window_features(model, dataloader):
     """
@@ -185,6 +127,35 @@ def main_v1():
     acc = accuracy_score(y_test, y_pred)
     logger.info(f"✅ 测试集准确率: {acc:.4f}")
     print(f"Accuracy on the test set is {acc:.4f}")
+
+def plot_feature_importance(classifier, output_dir, top_k=20, filename="feature_importance.png"):
+    """
+    绘制随机森林的特征重要性图（Top-K）
+    """
+    importances = classifier.feature_importances_
+    indices = np.argsort(importances)[::-1][:top_k]  # 降序取前 top_k
+
+    plt.figure(figsize=(10, 6))
+    plt.title(f"Top {top_k} Feature Importances from Random Forest", fontsize=14)
+    bars = plt.bar(range(top_k), importances[indices], color='cornflowerblue', edgecolor='black', alpha=0.8)
+    
+    # 添加数值标签
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2., height + 0.001,
+                 f"{importances[indices[i]]:.3f}",
+                 ha='center', va='bottom', fontsize=9)
+
+    plt.xticks(range(top_k), [f"Feature {idx}" for idx in indices], rotation=60)
+    plt.ylabel("Importance Score", fontsize=12)
+    plt.xlabel("Feature Index", fontsize=12)
+    plt.ylim(0, max(importances[indices]) * 1.1)
+    plt.tight_layout()
+    
+    save_path = os.path.join(output_dir, filename)
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    logger.info(f"✅ 特征重要性图已保存至: {save_path}")
+    plt.close()
 
 def main():
     logger.info("🚀 开始加载数据集...")
@@ -339,6 +310,12 @@ Class Distribution (Test): Healthy={np.sum(y_test == 0)}, Dysphonia={np.sum(y_te
         plt.close()
     except Exception as e:
         logger.warning(f"⚠️ 无法生成性能柱状图: {e}")
+    
+     # --- 4. 绘制并保存特征重要性图 ---
+    try:
+        plot_feature_importance(classifier, OUTPUT_DIR, top_k=20, filename="easycall_feature_importance.png")
+    except Exception as e:
+        logger.warning(f"⚠️ 无法生成特征重要性图: {e}")
 
     logger.info("🔚 所有评估完成，结果已保存。")
 

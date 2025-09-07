@@ -1,0 +1,138 @@
+{
+    "metadata": {
+        "generated_at": "2025-09-07 10:12:16",
+        "model": "Mantis-8M + RandomForestClassifier",
+        "dataset": "Parkinson_3700",
+        "test_samples": 40,
+        "class_distribution": {
+            "Healthy": 20,
+            "Dysphonia": 20
+        }
+    },
+    "metrics": {
+        "accuracy": 0.95,
+        "confusion_matrix": [
+            [
+                19,
+                1
+            ],
+            [
+                1,
+                19
+            ]
+        ],
+        "classification_report": {
+            "Healthy": {
+                "precision": 0.95,
+                "recall": 0.95,
+                "f1-score": 0.95,
+                "support": 20.0
+            },
+            "Dysphonia": {
+                "precision": 0.95,
+                "recall": 0.95,
+                "f1-score": 0.95,
+                "support": 20.0
+            },
+            "accuracy": 0.95,
+            "macro avg": {
+                "precision": 0.95,
+                "recall": 0.95,
+                "f1-score": 0.95,
+                "support": 40.0
+            },
+            "weighted avg": {
+                "precision": 0.95,
+                "recall": 0.95,
+                "f1-score": 0.95,
+                "support": 40.0
+            }
+        }
+    },
+    "predictions": {
+        "y_true": [
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ],
+        "y_pred": [
+            1,
+            1,
+            1,
+            1,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            1,
+            0,
+            0,
+            1,
+            0,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            1,
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+        ]
+    }
+}

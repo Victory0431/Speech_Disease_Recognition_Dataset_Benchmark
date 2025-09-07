@@ -1,23 +1,24 @@
 # Model Evaluation Report
-Generated at: 2025-09-07 09:02:32
-Model: Mantis-8M + RandomForestClassifier
-Dataset: Parkinson_3700
-Test Samples: 64
-Class Distribution (Test): Healthy=29, Dysphonia=35
+    Generated at: 2025-09-07 10:07:50
+    Model: Mantis-8M + RandomForestClassifier
+    Dataset: Parkinson_3700
+    Test Samples: 364
+    Class Distribution (Test): Healthy=191, Dysphonia=173
 
-🎯 Accuracy: 0.7656
+    🎯 Accuracy: 0.9615
 
-📊 Classification Report:
-              precision    recall  f1-score   support
+    📊 Classification Report:
+                  precision    recall  f1-score   support
 
-     Healthy       0.71      0.83      0.76        29
-   Dysphonia       0.83      0.71      0.77        35
+     Healthy       0.96      0.97      0.96       191
+   Dysphonia       0.96      0.95      0.96       173
 
-    accuracy                           0.77        64
-   macro avg       0.77      0.77      0.77        64
-weighted avg       0.78      0.77      0.77        64
+    accuracy                           0.96       364
+   macro avg       0.96      0.96      0.96       364
+weighted avg       0.96      0.96      0.96       364
 
 
-🔢 Confusion Matrix:
-[[24  5]
- [10  25]]
+    🔢 Confusion Matrix:
+    [[185  6]
+    [8  165]]
+    

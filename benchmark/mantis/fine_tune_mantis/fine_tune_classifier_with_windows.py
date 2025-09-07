@@ -17,6 +17,12 @@ import time
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
 
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, f1_score, roc_auc_score
+from sklearn.preprocessing import label_binarize
+from itertools import cycle
+
+
 # 引入通用工具组件
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 # from models.moe_classifier import DiseaseClassifier
@@ -38,6 +44,65 @@ N_FFT = 512
 HOP_LENGTH = 256  # 可调整步长
 TARGET_LENGTH = 512  # Mantis 输入长度
 POOLING_METHOD = 'mean'  # 'mean', 'max'
+
+def plot_f1_auc_curves(f1_scores, auc_scores, title='F1 and AUC Curves'):
+    plt.plot(f1_scores, label='Test F1 Score')
+    plt.plot(auc_scores, label='Test AUC')
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel('Score')
+    plt.legend()
+    plt.show()
+
+def plot_accuracy_curves(accuracies, title='Accuracy Curves'):
+    plt.plot(accuracies, label='Test Accuracy')
+    plt.title(title)
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy (%)')
+    plt.legend()
+    plt.show()
+
+def plot_confusion_matrix(y_true, y_pred, classes, normalize=False, title='Confusion matrix', cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    cm = confusion_matrix(y_true, y_pred)
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+    ax.figure.colorbar(im, ax=ax)
+    # We want to show all ticks...
+    ax.set(xticks=np.arange(cm.shape[1]),
+           yticks=np.arange(cm.shape[0]),
+           # ... and label them with the respective list entries
+           xticklabels=classes, yticklabels=classes,
+           title=title,
+           ylabel='True label',
+           xlabel='Predicted label')
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations.
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], fmt),
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black")
+    fig.tight_layout()
+    return ax
+
 
 def extract_window_features(model, dataloader):
     """
@@ -174,16 +239,108 @@ def main():
     logger.info("📊 正在进行模型评估...")
     y_pred = classifier.predict(X_test)
     acc = accuracy_score(y_test, y_pred)
+    report = classification_report(y_test, y_pred, output_dict=False)
+    cm = confusion_matrix(y_test, y_pred)
 
     # 输出详细评估报告
     logger.info(f"✅ 最终结果:")
     logger.info(f"   🎯 测试集准确率: {acc:.4f}")
-    logger.info(f"   📊 分类报告:\n{classification_report(y_test, y_pred)}")
-    logger.info(f"   🔢 混淆矩阵:\n{confusion_matrix(y_test, y_pred)}")
+    logger.info(f"   📊 分类报告:\n{report}")
+    logger.info(f"   🔢 混淆矩阵:\n{cm}")
 
     print(f"✅ Accuracy on the test set is {acc:.4f}")
-    print(f"📈 分类报告:\n{classification_report(y_test, y_pred)}")
+    print(f"📈 分类报告:\n{report}")
 
+    # === 🔽 绘图与保存结果部分 🔽 ===
+    OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(OUTPUT_DIR, exist_ok=True)  # 确保目录存在
+
+    # 文件名定义
+    CONFUSION_MATRIX_FILENAME = "easycall_confusion_matrix.png"
+    METRICS_FILENAME = "easycall_training_metrics_detailed.txt"
+
+    # --- 1. 绘制并保存混淆矩阵 ---
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Confusion Matrix (Random Forest on Mantis-8M Features)", fontsize=14)
+    plt.colorbar()
+    classes = ['Healthy (0)', 'Dysphonia (1)']
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    # 添加数值标签
+    thresh = cm.max() / 2.
+    for i, j in np.ndindex(cm.shape):
+        plt.text(j, i, format(cm[i, j], 'd'),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.ylabel('True Label', fontsize=12)
+    plt.xlabel('Predicted Label', fontsize=12)
+    plt.tight_layout()
+    confusion_matrix_path = os.path.join(OUTPUT_DIR, CONFUSION_MATRIX_FILENAME)
+    plt.savefig(confusion_matrix_path, dpi=300, bbox_inches='tight')
+    logger.info(f"✅ 混淆矩阵已保存至: {confusion_matrix_path}")
+    plt.close()
+
+    # --- 2. 保存详细指标到文本文件 ---
+    metrics_content = f"""# Model Evaluation Report
+Generated at: {time.strftime('%Y-%m-%d %H:%M:%S')}
+Model: Mantis-8M + RandomForestClassifier
+Dataset: Parkinson_3700
+Test Samples: {len(y_test)}
+Class Distribution (Test): Healthy={np.sum(y_test == 0)}, Dysphonia={np.sum(y_test == 1)}
+
+🎯 Accuracy: {acc:.4f}
+
+📊 Classification Report:
+{classification_report(y_test, y_pred, target_names=['Healthy', 'Dysphonia'])}
+
+🔢 Confusion Matrix:
+[[{cm[0, 0]}  {cm[0, 1]}]
+ [{cm[1, 0]}  {cm[1, 1]}]]
+"""
+    metrics_path = os.path.join(OUTPUT_DIR, METRICS_FILENAME)
+    with open(metrics_path, 'w', encoding='utf-8') as f:
+        f.write(metrics_content)
+    logger.info(f"✅ 详细评估报告已保存至: {metrics_path}")
+
+    # --- 3. 可选：绘制分类报告的柱状图（F1, Precision, Recall）---
+    try:
+        from sklearn.metrics import precision_recall_fscore_support
+        precision, recall, f1, _ = precision_recall_fscore_support(y_test, y_pred, average=None, zero_division=0)
+        x = np.arange(len(classes))
+        width = 0.25
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(x - width, precision, width, label='Precision', color='skyblue')
+        plt.bar(x, recall, width, label='Recall', color='lightgreen')
+        plt.bar(x + width, f1, width, label='F1-Score', color='salmon')
+
+        plt.ylabel('Score')
+        plt.title('Per-Class Performance Metrics')
+        plt.xticks(x, classes)
+        plt.ylim(0, 1.0)
+        plt.legend()
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+        for i, v in enumerate(precision):
+            plt.text(i - width, v + 0.01, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+        for i, v in enumerate(recall):
+            plt.text(i, v + 0.01, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+        for i, v in enumerate(f1):
+            plt.text(i + width, v + 0.01, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+
+        plt.tight_layout()
+        metrics_plot_path = os.path.join(OUTPUT_DIR, "easycall_performance_bars.png")
+        plt.savefig(metrics_plot_path, dpi=300, bbox_inches='tight')
+        logger.info(f"✅ 性能指标柱状图已保存至: {metrics_plot_path}")
+        plt.close()
+    except Exception as e:
+        logger.warning(f"⚠️ 无法生成性能柱状图: {e}")
+
+    logger.info("🔚 所有评估完成，结果已保存。")
 
 if __name__ == "__main__":
     main()

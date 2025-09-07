@@ -1,0 +1,23 @@
+# Model Evaluation Report
+Generated at: 2025-09-07 08:36:19
+Model: Mantis-8M + RandomForestClassifier
+Dataset: Parkinson_3700
+Test Samples: 364
+Class Distribution (Test): Healthy=191, Dysphonia=173
+
+🎯 Accuracy: 0.9615
+
+📊 Classification Report:
+              precision    recall  f1-score   support
+
+     Healthy       0.96      0.97      0.96       191
+   Dysphonia       0.96      0.95      0.96       173
+
+    accuracy                           0.96       364
+   macro avg       0.96      0.96      0.96       364
+weighted avg       0.96      0.96      0.96       364
+
+
+🔢 Confusion Matrix:
+[[185  6]
+ [8  165]]

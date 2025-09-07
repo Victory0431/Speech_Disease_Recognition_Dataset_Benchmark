@@ -13,6 +13,10 @@ from mantis.architecture import Mantis8M
 from mantis.trainer import MantisTrainer
 import logging
 
+import time
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+
 # 引入通用工具组件
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
 # from models.moe_classifier import DiseaseClassifier
@@ -74,7 +78,7 @@ def extract_window_features(model, dataloader):
     y = np.concatenate(all_labels, axis=0)
     return X, y
 
-def main():
+def main_v1():
     logger.info("🚀 开始加载数据集...")
 
     # Step 1: 获取分窗后的 DataLoader（使用原始代码中的 get_dataloaders）
@@ -116,6 +120,70 @@ def main():
     acc = accuracy_score(y_test, y_pred)
     logger.info(f"✅ 测试集准确率: {acc:.4f}")
     print(f"Accuracy on the test set is {acc:.4f}")
+
+def main():
+    logger.info("🚀 开始加载数据集...")
+
+    # Step 1: 获取分窗后的 DataLoader
+    train_loader, val_loader, test_loader, N_MAX = SpeechDiseaseDataset.get_dataloaders(
+        data_root=DATA_ROOT,
+        sample_rate=SAMPLE_RATE,
+        n_fft=N_FFT,
+        hop_length=HOP_LENGTH,
+        batch_size=BATCH_SIZE,
+        num_workers=4
+    )
+
+    logger.info(f"✅ 数据加载完成")
+    logger.info(f"📊 训练集样本数: {len(train_loader.dataset)} | 批次数: {len(train_loader)}")
+    logger.info(f"📊 测试集样本数: {len(test_loader.dataset)} | 批次数: {len(test_loader)}")
+    logger.info(f"📏 每个样本最大窗口数 N_MAX: {N_MAX}")
+
+    # Step 2: 加载 Mantis 模型（仅用于特征提取）
+    logger.info("📥 加载 Mantis-8M 预训练模型...")
+    network = Mantis8M(device=DEVICE)
+    network = network.from_pretrained(MODEL_NAME)
+    model = MantisTrainer(device=DEVICE, network=network)
+    logger.info("✅ 模型加载完成")
+    logger.info(f"🧠 模型结构: {network}")
+
+    # Step 3: 提取训练集和测试集的聚合特征（带进度）
+    logger.info("🔍 开始提取【训练集】窗口特征...")
+    start_time = time.time()
+    X_train, y_train = extract_window_features(model, train_loader)
+    train_extract_time = time.time() - start_time
+    logger.info(f"✅ 训练集特征提取完成 | 耗时: {train_extract_time:.2f}s | X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
+
+    logger.info("🔍 开始提取【测试集】窗口特征...")
+    start_time = time.time()
+    X_test, y_test = extract_window_features(model, test_loader)
+    test_extract_time = time.time() - start_time
+    logger.info(f"✅ 测试集特征提取完成 | 耗时: {test_extract_time:.2f}s | X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
+
+    # Step 4: 训练分类器
+    logger.info("🎯 开始训练分类器...")
+    logger.info(f"🧮 使用分类器: RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)")
+
+    start_train_time = time.time()
+    classifier = RandomForestClassifier(n_estimators=200, n_jobs=-1, random_state=42)
+    classifier.fit(X_train, y_train)
+    train_classifier_time = time.time() - start_train_time
+    logger.info(f"✅ 分类器训练完成 | 耗时: {train_classifier_time:.2f}s")
+
+    # Step 5: 评估
+    logger.info("📊 正在进行模型评估...")
+    y_pred = classifier.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+
+    # 输出详细评估报告
+    logger.info(f"✅ 最终结果:")
+    logger.info(f"   🎯 测试集准确率: {acc:.4f}")
+    logger.info(f"   📊 分类报告:\n{classification_report(y_test, y_pred)}")
+    logger.info(f"   🔢 混淆矩阵:\n{confusion_matrix(y_test, y_pred)}")
+
+    print(f"✅ Accuracy on the test set is {acc:.4f}")
+    print(f"📈 分类报告:\n{classification_report(y_test, y_pred)}")
+
 
 if __name__ == "__main__":
     main()

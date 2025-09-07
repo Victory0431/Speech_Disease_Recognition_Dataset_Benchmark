@@ -181,7 +181,7 @@ def main():
     network = network.from_pretrained(MODEL_NAME)
     model = MantisTrainer(device=DEVICE, network=network)
     logger.info("✅ 模型加载完成")
-    logger.info(f"🧠 模型结构: {network}")
+    # logger.info(f"🧠 模型结构: {network}")
 
     # Step 3: 提取训练集和测试集的聚合特征（带进度）
     logger.info("🔍 开始提取【训练集】窗口特征...")

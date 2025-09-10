@@ -1,235 +1,392 @@
-# 导入自定义的MLP模型
+# File: fine_tune_classifier_with_windows.py
+
+import os
+import json
+import torch
 import sys
 from pathlib import Path
-import os
+import torch.nn.functional as F
 import numpy as np
-import pandas as pd
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import (accuracy_score, recall_score, f1_score, confusion_matrix, roc_auc_score)
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+from mantis.architecture import Mantis8M
+from mantis.trainer import MantisTrainer
+from sklearn.metrics import precision_recall_fscore_support
+import logging
+
+import time
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+
 import matplotlib.pyplot as plt
-import librosa
-from imblearn.over_sampling import SMOTE
-from tqdm import tqdm
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, f1_score, roc_auc_score
+from sklearn.preprocessing import label_binarize
+from itertools import cycle
 
-# 添加tools目录到Python路径（确保能找到models包）
+
+# 引入通用工具组件
 sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
-from models.mlp import MLP  # 从models包中导入MLP类
-from configs.MFCC_config import MFCCConfig
-from datasets.BaseDataset import BaseDataset
-from trainer.evaluate_detailed import evaluate_model_detailed
-from trainer.train_and_evaluate import train_and_evaluate
-from utils.save_results import save_results
+# from models.moe_classifier import DiseaseClassifier
+# from models.moe_classifier_unfreeze_v2 import DiseaseClassifier
+# from moe_dataset.speech_disease_dataset import SpeechDiseaseDataset
+from moe_dataset.speech_disease_dataset_v2 import SpeechDiseaseDataset
 
-# 配置参数 - 集中管理所有可配置项
-class Config:
-    # 数据相关
-    ROOT_WAV_DIR = "/mnt/data/test1/audio_database/EDAIC/wav"  # WAV文件根目录
-    LABEL_DIR = "/mnt/data/test1/audio_database/EDAIC/labels"  # 标签文件目录
-    CLASS_NAMES = ["Non-Depression", "Depression"]  # 0: 非抑郁症, 1: 抑郁症
-    # 训练相关
-    RANDOM_STATE = 42
-    BATCH_SIZE = 8  # 根据数据集大小调整
-    LEARNING_RATE = 0.001
-    NUM_EPOCHS = 100
-    CLASS_WEIGHTS = [1.0, 1.0]  # 初始值，可根据实际样本比例调整
-    # 模型相关
-    HIDDEN_SIZE = 64  # 二分类任务隐藏层大小
-    # 输出相关
-    OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
-    PLOT_FILENAME = "edaic_training_metrics.png"
-    METRICS_FILENAME = "edaic_training_metrics_detailed.txt"
-    CONFUSION_MATRIX_FILENAME = "edaic_confusion_matrix.png"
+# 设置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# EDAIC数据集类（适配二分类和WAV文件，使用预划分的训练/验证/测试集）
-class EDAICDataset(BaseDataset):
-    @classmethod
-    def load_split_data(cls, root_wav_dir, label_dir):
-        """加载预划分的训练集、验证集、测试集数据及标签"""
-        # 定义标签文件路径
-        train_label_path = os.path.join(label_dir, "train_split.csv")
-        val_label_path = os.path.join(label_dir, "dev_split.csv")
-        test_label_path = os.path.join(label_dir, "test_split.csv")
-        
-        # 读取标签文件
-        def load_labels(csv_path):
-            """从CSV文件加载标签，返回(文件路径列表, 标签列表)"""
-            df = pd.read_csv(csv_path)
-            # 检查必要列是否存在
-            print('df c:',df.columns)
-            if 'Participant_ID' not in df.columns or 'PHQ_Binary' not in df.columns:
-                raise ValueError(f"标签文件 {csv_path} 缺少必要列(Participant_ID或PHQ8_Binary)")
-            
-            file_paths = []
-            labels = []
-            for _, row in df.iterrows():
-                participant_id = row['Participant_ID']
-                label = int(row['PHQ_Binary'])  # 1: 抑郁症, 0: 非抑郁症
-                # 构建WAV文件路径
-                wav_filename = f"{participant_id}_AUDIO.wav"
-                wav_path = os.path.join(root_wav_dir, wav_filename)
-                if os.path.exists(wav_path):
-                    file_paths.append(wav_path)
-                    labels.append(label)
-                else:
-                    print(f"警告: WAV文件不存在 - {wav_path}，已跳过")
-            return file_paths, labels
-        
-        # 分别加载训练集、验证集、测试集
-        print("加载训练集标签和音频路径...")
-        train_files, train_labels = load_labels(train_label_path)
-        print("加载验证集标签和音频路径...")
-        val_files, val_labels = load_labels(val_label_path)
-        print("加载测试集标签和音频路径...")
-        test_files, test_labels = load_labels(test_label_path)
-        
-        # 检查是否加载到数据
-        for name, files in [("训练集", train_files), ("验证集", val_files), ("测试集", test_files)]:
-            if not files:
-                raise ValueError(f"未加载到任何{name}数据，请检查标签文件和WAV文件路径")
-        
-        # 提取特征
-        def extract_features(file_list, label_list):
-            """对文件列表提取MFCC特征"""
-            features = []
-            labels = []
-            errors = []
-            for file_path, label in tqdm(zip(file_list, label_list), desc="提取MFCC特征", total=len(file_list)):
-                filename = os.path.basename(file_path)
-                try:
-                    # 读取音频文件（WAV格式）
-                    signal, _ = librosa.load(
-                        file_path,
-                        sr=MFCCConfig.sr
-                    )
-                    # 提取MFCC特征
-                    mfccs = librosa.feature.mfcc(
-                        y=signal,
-                        sr=MFCCConfig.sr,
-                        n_mfcc=MFCCConfig.n_mfcc,
-                        n_fft=MFCCConfig.n_fft,
-                        hop_length=MFCCConfig.hop_length,
-                        n_mels=MFCCConfig.n_mels,
-                        fmin=MFCCConfig.fmin,
-                        fmax=MFCCConfig.fmax
-                    )
-                    # 计算MFCC的统计特征（均值、标准差、最大值、最小值）
-                    mfccs_mean = np.mean(mfccs, axis=1)
-                    mfccs_std = np.std(mfccs, axis=1)
-                    mfccs_max = np.max(mfccs, axis=1)
-                    mfccs_min = np.min(mfccs, axis=1)
-                    # 合并特征
-                    features_combined = np.concatenate([mfccs_mean, mfccs_std, mfccs_max, mfccs_min])
-                    features.append(features_combined)
-                    labels.append(label)
-                except Exception as e:
-                    errors.append(f"处理 {filename} 时出错: {str(e)}")
-            
-            # 打印错误信息
-            if errors:
-                print(f"\n特征提取完成，共 {len(errors)} 个文件处理失败:")
-                for err in errors[:10]:  # 只显示前10个错误
-                    print(err)
-                if len(errors) > 10:
-                    print(f"... 还有 {len(errors)-10} 个错误未显示")
-            
-            if not features:
-                raise ValueError("未提取到任何有效特征，请检查音频文件格式")
-            
-            return np.array(features), np.array(labels)
-        
-        # 分别提取三个数据集的特征
-        print("\n开始提取训练集特征...")
-        train_features, train_labels = extract_features(train_files, train_labels)
-        print("\n开始提取验证集特征...")
-        val_features, val_labels = extract_features(val_files, val_labels)
-        print("\n开始提取测试集特征...")
-        test_features, test_labels = extract_features(test_files, test_labels)
-        
-        # 打印数据集统计信息
-        print(f"\n数据集加载完成 - 特征形状:")
-        print(f"训练集: {train_features.shape}, 验证集: {val_features.shape}, 测试集: {test_features.shape}")
-        
-        for i, class_name in enumerate(Config.CLASS_NAMES):
-            train_count = np.sum(train_labels == i)
-            val_count = np.sum(val_labels == i)
-            test_count = np.sum(test_labels == i)
-            print(f"\n{class_name} 样本数 ({i}):")
-            print(f"训练集: {train_count} ({train_count/len(train_labels)*100:.2f}%)")
-            print(f"验证集: {val_count} ({val_count/len(val_labels)*100:.2f}%)")
-            print(f"测试集: {test_count} ({test_count/len(test_labels)*100:.2f}%)")
-        
-        print(f"\n总样本数 - 训练集: {len(train_labels)}, 验证集: {len(val_labels)}, 测试集: {len(test_labels)}")
-        return train_features, train_labels, val_features, val_labels, test_features, test_labels
+# 配置参数
+DATA_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/Parkinson_3700"  # 修改为你的路径
+SAMPLE_RATE = 8000
+BATCH_SIZE = 32
+DEVICE = 'cuda:6' if torch.cuda.is_available() else 'cpu'
+MODEL_NAME = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mantis/model"
+N_FFT = 512
+HOP_LENGTH = 256  # 可调整步长
+TARGET_LENGTH = 512  # Mantis 输入长度
+POOLING_METHOD = 'mean'  # 'mean', 'max'
+
+# File: fine_tune_classifier_with_windows.py
+
+import os
+import json
+import torch
+import sys
+from pathlib import Path
+import torch.nn.functional as F
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+from mantis.architecture import Mantis8M
+from mantis.trainer import MantisTrainer
+from sklearn.metrics import precision_recall_fscore_support
+import logging
+
+import time
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score, f1_score, roc_auc_score
+from sklearn.preprocessing import label_binarize
+from itertools import cycle
+
+
+# 引入通用工具组件
+sys.path.append(str(Path(__file__).parent.parent.parent / "tools"))
+# from models.moe_classifier import DiseaseClassifier
+# from models.moe_classifier_unfreeze_v2 import DiseaseClassifier
+# from moe_dataset.speech_disease_dataset import SpeechDiseaseDataset
+from moe_dataset.speech_disease_dataset_v3 import SpeechDiseaseDataset
+
+# 设置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 配置参数
+DATA_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/dataset/Parkinson_3700"  # 修改为你的路径
+SAMPLE_RATE = 8000
+BATCH_SIZE = 32
+DEVICE = 'cuda:6' if torch.cuda.is_available() else 'cpu'
+MODEL_NAME = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mantis/model"
+N_FFT = 512
+HOP_LENGTH = 256  # 可调整步长
+TARGET_LENGTH = 512  # Mantis 输入长度
+POOLING_METHOD = 'mean'  # 'mean', 'max'
+
+
+def extract_window_features(model, dataloader):
+    """
+    对每个窗口提取 Mantis 特征
+    返回：list of (features, label, num_windows)
+        features: (N, 256) 每个窗口的特征
+    """
+    model.network.eval()
+    all_features = []
+    all_labels = []
+
+    with torch.no_grad():
+        for windows, labels, lengths in dataloader:
+            B = windows.size(0)
+            N_max = windows.size(1)
+            x = windows.view(-1, 1, N_max * 512 // N_max)  # (B*N, 1, 512)
+            x = x[:, :, :TARGET_LENGTH]  # 确保长度为 512
+
+            # 使用 Mantis 提取特征
+            z = model.transform(x.numpy())  # (B*N, 256)
+            z = torch.tensor(z, device=DEVICE)
+
+            # 恢复每个样本的窗口结构
+            z = z.view(B, -1, z.size(-1))  # (B, N, 256)
+
+            # 池化：mean 或 max
+            if POOLING_METHOD == 'mean':
+                pooled = z.mean(dim=1)  # (B, 256)
+            elif POOLING_METHOD == 'max':
+                pooled, _ = z.max(dim=1)  # (B, 256)
+            else:
+                raise ValueError(f"Unknown pooling: {POOLING_METHOD}")
+
+            all_features.append(pooled.cpu().numpy())
+            all_labels.append(labels.numpy())
+
+    X = np.concatenate(all_features, axis=0)
+    y = np.concatenate(all_labels, axis=0)
+    return X, y
+
+def plot_confusion_matrix_and_save(y_true, y_pred, output_dir, filename="confusion_matrix.png"):
+    """绘制并保存混淆矩阵"""
+    cm = confusion_matrix(y_true, y_pred)
+    classes = ['Healthy (0)', 'Dysphonia (1)']
+    
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title("Confusion Matrix (Random Forest on Mantis-8M Features)", fontsize=14)
+    plt.colorbar()
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+
+    thresh = cm.max() / 2.
+    for i, j in np.ndindex(cm.shape):
+        plt.text(j, i, format(cm[i, j], 'd'),
+                 horizontalalignment="center",
+                 color="white" if cm[i, j] > thresh else "black")
+
+    plt.ylabel('True Label', fontsize=12)
+    plt.xlabel('Predicted Label', fontsize=12)
+    plt.tight_layout()
+    
+    path = os.path.join(output_dir, filename)
+    plt.savefig(path, dpi=300, bbox_inches='tight')
+    plt.close()
+    logger.info(f"✅ 混淆矩阵已保存至: {path}")
+
+
+def plot_performance_bars_and_save(y_true, y_pred, output_dir, filename="performance_bars.png"):
+    """绘制 Precision/Recall/F1 柱状图并保存"""
+    try:
+        precision, recall, f1, _ = precision_recall_fscore_support(y_true, y_pred, average=None, zero_division=0)
+        classes = ['Healthy (0)', 'Dysphonia (1)']
+        x = np.arange(len(classes))
+        width = 0.25
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(x - width, precision, width, label='Precision', color='skyblue')
+        plt.bar(x, recall, width, label='Recall', color='lightgreen')
+        plt.bar(x + width, f1, width, label='F1-Score', color='salmon')
+
+        plt.ylabel('Score')
+        plt.title('Per-Class Performance Metrics')
+        plt.xticks(x, classes)
+        plt.ylim(0, 1.0)
+        plt.legend()
+        plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+        for i, v in enumerate(precision):
+            plt.text(i - width, v + 0.01, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+        for i, v in enumerate(recall):
+            plt.text(i, v + 0.01, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+        for i, v in enumerate(f1):
+            plt.text(i + width, v + 0.01, f"{v:.2f}", ha='center', va='bottom', fontsize=9)
+
+        plt.tight_layout()
+        path = os.path.join(output_dir, filename)
+        plt.savefig(path, dpi=300, bbox_inches='tight')
+        plt.close()
+        logger.info(f"✅ 性能指标柱状图已保存至: {path}")
+    except Exception as e:
+        logger.warning(f"⚠️ 无法生成性能柱状图: {e}")
+
+
+def plot_feature_importance(classifier, output_dir, top_k=20, filename="feature_importance.png"):
+    """绘制并保存随机森林的特征重要性图"""
+    try:
+        importances = classifier.feature_importances_
+        indices = np.argsort(importances)[::-1][:top_k]
+
+        plt.figure(figsize=(10, 6))
+        plt.title(f"Top {top_k} Feature Importances from Random Forest", fontsize=14)
+        bars = plt.bar(range(top_k), importances[indices], color='cornflowerblue', edgecolor='black', alpha=0.8)
+
+        for i, bar in enumerate(bars):
+            height = bar.get_height()
+            plt.text(bar.get_x() + bar.get_width() / 2., height + 0.001,
+                     f"{importances[indices[i]]:.3f}",
+                     ha='center', va='bottom', fontsize=9)
+
+        plt.xticks(range(top_k), [f"Feature {idx}" for idx in indices], rotation=60)
+        plt.ylabel("Importance Score", fontsize=12)
+        plt.xlabel("Feature Index", fontsize=12)
+        plt.ylim(0, max(importances[indices]) * 1.1)
+        plt.tight_layout()
+
+        path = os.path.join(output_dir, filename)
+        plt.savefig(path, dpi=300, bbox_inches='tight')
+        plt.close()
+        logger.info(f"✅ 特征重要性图已保存至: {path}")
+    except Exception as e:
+        logger.warning(f"⚠️ 无法生成特征重要性图: {e}")
+
+
+def save_evaluation_to_json(y_true, y_pred, output_dir, filename="evaluation_results.json"):
+    """
+    将模型评估结果以结构化 JSON 格式保存，便于后续批量读取与分析。
+
+    Args:
+        y_true: 真实标签 (array-like)
+        y_pred: 预测标签 (array-like)
+        output_dir: 保存目录
+        filename: 保存的文件名，默认为 'evaluation_results.json'
+    """
+    # 计算各项指标
+    acc = accuracy_score(y_true, y_pred)
+    cm = confusion_matrix(y_true, y_pred).tolist()  # 转为 Python list 以便 JSON 序列化
+    cls_report = classification_report(y_true, y_pred, target_names=['Healthy', 'Dysphonia'], output_dict=True)  # 输出为 dict
+
+    # 构建结构化结果
+    results = {
+        "metadata": {
+            "generated_at": time.strftime('%Y-%m-%d %H:%M:%S'),
+            "model": "Mantis-8M + RandomForestClassifier",
+            "dataset": "Parkinson_3700",
+            "test_samples": int(len(y_true)),
+            "class_distribution": {
+                "Healthy": int(np.sum(y_true == 0)),
+                "Dysphonia": int(np.sum(y_true == 1))
+            }
+        },
+        "metrics": {
+            "accuracy": float(acc),
+            "confusion_matrix": cm,  # [[TN, FP], [FN, TP]]
+            "classification_report": cls_report  # 包含 per-class 和 macro/weighted avg
+        },
+        "predictions": {
+            "y_true": y_true.tolist(),
+            "y_pred": y_pred.tolist()
+        }
+    }
+
+    # 保存路径
+    path = os.path.join(output_dir, filename)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(results, f, indent=4, ensure_ascii=False)
+
+    logger.info(f"✅ 评估结果已保存为 JSON 文件: {path}")
+    return path  # 返回路径便于后续使用
+
+def plot_feature_importance(classifier, output_dir, top_k=20, filename="feature_importance.png"):
+    """
+    绘制随机森林的特征重要性图（Top-K）
+    """
+    importances = classifier.feature_importances_
+    indices = np.argsort(importances)[::-1][:top_k]  # 降序取前 top_k
+
+    plt.figure(figsize=(10, 6))
+    plt.title(f"Top {top_k} Feature Importances from Random Forest", fontsize=14)
+    bars = plt.bar(range(top_k), importances[indices], color='cornflowerblue', edgecolor='black', alpha=0.8)
+    
+    # 添加数值标签
+    for i, bar in enumerate(bars):
+        height = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width() / 2., height + 0.001,
+                 f"{importances[indices[i]]:.3f}",
+                 ha='center', va='bottom', fontsize=9)
+
+    plt.xticks(range(top_k), [f"Feature {idx}" for idx in indices], rotation=60)
+    plt.ylabel("Importance Score", fontsize=12)
+    plt.xlabel("Feature Index", fontsize=12)
+    plt.ylim(0, max(importances[indices]) * 1.1)
+    plt.tight_layout()
+    
+    save_path = os.path.join(output_dir, filename)
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    logger.info(f"✅ 特征重要性图已保存至: {save_path}")
+    plt.close()
+
 
 def main():
-    # 加载配置
-    config = Config()
-    print(f"使用数据集类别: {config.CLASS_NAMES}")
-    
-    # 加载数据（使用预划分的训练/验证/测试集）
-    print("开始加载EDAIC数据集...")
-    train_features, train_labels, val_features, val_labels, test_features, test_labels = EDAICDataset.load_split_data(
-        config.ROOT_WAV_DIR,
-        config.LABEL_DIR
+    logger.info("🚀 开始加载数据集...")
+
+    # Step 1: 获取分窗后的 DataLoader
+    train_loader, val_loader, test_loader, N_MAX = SpeechDiseaseDataset.get_dataloaders(
+        data_root=DATA_ROOT,
+        sample_rate=SAMPLE_RATE,
+        n_fft=N_FFT,
+        hop_length=HOP_LENGTH,
+        batch_size=BATCH_SIZE,
+        num_workers=4
     )
-    
-    # 打印数据集划分情况
-    print("\n数据集划分情况:")
-    print(f"训练集样本数: {len(train_labels)}")
-    print(f"验证集样本数: {len(val_labels)}")
-    print(f"测试集样本数: {len(test_labels)}")
-    
-    # 使用SMOTE进行过采样处理类别不平衡
-    print("\n使用SMOTE进行过采样处理...")
-    smote = SMOTE(random_state=config.RANDOM_STATE)
-    train_features_resampled, train_labels_resampled = smote.fit_resample(
-        train_features,
-        train_labels
-    )
-    print("过采样后的训练集类别分布:")
-    for i, class_name in enumerate(config.CLASS_NAMES):
-        count = np.sum(train_labels_resampled == i)
-        print(f"{class_name}: {count} ({count/len(train_labels_resampled)*100:.2f}%)")
-    
-    # 标准化特征
-    scaler = StandardScaler()
-    train_features_scaled = scaler.fit_transform(train_features_resampled)
-    val_features_scaled = scaler.transform(val_features)
-    test_features_scaled = scaler.transform(test_features)
-    
-    # 创建数据加载器
-    train_dataset = BaseDataset(train_features_scaled, train_labels_resampled)
-    val_dataset = BaseDataset(val_features_scaled, val_labels)
-    test_dataset = BaseDataset(test_features_scaled, test_labels)
-    
-    train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=config.BATCH_SIZE, shuffle=False)
-    test_loader = DataLoader(test_dataset, batch_size=config.BATCH_SIZE, shuffle=False)
-    
-    # 初始化模型、损失函数和优化器
-    input_dim = train_features.shape[1]
-    print(f"\n输入特征维度: {input_dim}")
-    model = MLP(input_dim, config.HIDDEN_SIZE, num_classes=len(config.CLASS_NAMES))
-    
-    # 计算并更新类别权重（根据原始训练集比例）
-    class_counts = np.bincount(train_labels)
-    config.CLASS_WEIGHTS = len(train_labels) / (len(config.CLASS_NAMES) * class_counts)
-    print(f"自动计算的类别权重: {config.CLASS_WEIGHTS}")
-    
-    class_weights = torch.FloatTensor(config.CLASS_WEIGHTS)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    
-    # 训练和评估
-    print("\n开始模型训练...")
-    metrics = train_and_evaluate(model, train_loader, val_loader, test_loader, criterion, optimizer, config)
-    
-    # 保存结果
-    save_results(metrics, config)
-    print("所有流程完成!")
+
+    logger.info(f"✅ 数据加载完成")
+    logger.info(f"📊 训练集样本数: {len(train_loader.dataset)} | 批次数: {len(train_loader)}")
+    logger.info(f"📊 测试集样本数: {len(test_loader.dataset)} | 批次数: {len(test_loader)}")
+    logger.info(f"📏 每个样本最大窗口数 N_MAX: {N_MAX}")
+
+    # Step 2: 加载 Mantis 模型（仅用于特征提取）
+    logger.info("📥 加载 Mantis-8M 预训练模型...")
+    network = Mantis8M(device=DEVICE)
+    network = network.from_pretrained(MODEL_NAME)
+    model = MantisTrainer(device=DEVICE, network=network)
+    logger.info("✅ 模型加载完成")
+
+    # Step 3: 提取特征
+    logger.info("🔍 开始提取【训练集】窗口特征...")
+    start_time = time.time()
+    X_train, y_train = extract_window_features(model, train_loader)
+    logger.info(f"✅ 训练集特征提取完成 | 耗时: {time.time() - start_time:.2f}s | X_train.shape={X_train.shape}, y_train.shape={y_train.shape}")
+
+    logger.info("🔍 开始提取【测试集】窗口特征...")
+    start_time = time.time()
+    X_test, y_test = extract_window_features(model, test_loader)
+    logger.info(f"✅ 测试集特征提取完成 | 耗时: {time.time() - start_time:.2f}s | X_test.shape={X_test.shape}, y_test.shape={y_test.shape}")
+
+    # Step 4: 训练分类器
+    logger.info("🎯 开始训练分类器...")
+    logger.info(f"🧮 使用分类器: RandomForestClassifier(n_estimators=200, random_state=42, n_jobs=-1)")
+    start_train_time = time.time()
+    classifier = RandomForestClassifier(n_estimators=200, n_jobs=-1, random_state=42)
+    classifier.fit(X_train, y_train)
+    logger.info(f"✅ 分类器训练完成 | 耗时: {time.time() - start_train_time:.2f}s")
+
+    # Step 5: 评估
+    logger.info("📊 正在进行模型评估...")
+    y_pred = classifier.predict(X_test)
+    acc = accuracy_score(y_test, y_pred)
+    report = classification_report(y_test, y_pred, output_dict=False)
+    logger.info(f"✅ 最终结果:")
+    logger.info(f"   🎯 测试集准确率: {acc:.4f}")
+    logger.info(f"   📊 分类报告:\n{report}")
+
+    print(f"✅ Accuracy on the test set is {acc:.4f}")
+    print(f"📈 分类报告:\n{report}")
+
+    # === 🔽 绘图与保存结果（全部调用独立函数）===
+    OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+    # 1. 绘制混淆矩阵
+    plot_confusion_matrix_and_save(y_test, y_pred, OUTPUT_DIR, "easycall_confusion_matrix.png")
+
+    # 2. 保存文本报告
+    save_evaluation_to_json(y_test, y_pred, OUTPUT_DIR, "easycall_training_metrics_detailed.json")
+
+    # 3. 绘制性能柱状图
+    plot_performance_bars_and_save(y_test, y_pred, OUTPUT_DIR, "easycall_performance_bars.png")
+
+    # 4. 绘制特征重要性图
+    plot_feature_importance(classifier, OUTPUT_DIR, top_k=20, filename="easycall_feature_importance.png")
+
+    logger.info("🔚 所有评估完成，结果已保存。")
+
 
 if __name__ == "__main__":
     main()
+
+# 数据相关
+    # ROOT_WAV_DIR = "/mnt/data/test1/audio_database/EDAIC/wav"  # WAV文件根目录
+    # LABEL_DIR = "/mnt/data/test1/audio_database/EDAIC/labels"  # 标签文件目录
+    # CLASS_NAMES = ["Non-Depression", "Depression"]  # 0: 非抑郁症, 1: 抑郁症
+

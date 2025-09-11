@@ -27,8 +27,8 @@ if torch.cuda.is_available():
 class Config:
     # 数据路径
     DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Parkinson_KCL_2017"
-    DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/COVID_19_CNN"
-    DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/ICBHI"
+    # DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/COVID_19_CNN"
+    # DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/ICBHI"
     LOCAL_MODEL_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mantis/model/"
     
     # 音频参数
@@ -75,12 +75,12 @@ class SpeechDataset(Dataset):
             
         return torch.tensor(sample, dtype=torch.float32), torch.tensor(label, dtype=torch.long)
 
-# 音频预处理工具类
 class AudioPreprocessor:
     def __init__(self, sample_rate=Config.SAMPLE_RATE, input_length=Config.MODEL_INPUT_LENGTH):
         self.sample_rate = sample_rate
-        self.input_length = input_length
-        self.window_size = None  # 将在计算分位数后设置
+        self.input_length = input_length  # 每个窗口的长度，固定为512
+        self.window_count = None  # 固定的窗口数量，基于95分位数计算
+        self.window_size = None  # 总窗口大小 = window_count × input_length，保持原属性名以便兼容
         
     def load_audio(self, file_path):
         """加载音频文件并降采样"""
@@ -88,7 +88,7 @@ class AudioPreprocessor:
         return audio
     
     def calculate_window_size(self, audio_files):
-        """根据音频长度的95分位数计算窗口大小"""
+        """根据音频长度的95分位数计算固定的窗口数量和总窗口大小"""
         lengths = []
         for file in tqdm(audio_files, desc="计算音频长度分布"):
             audio = self.load_audio(file)
@@ -96,29 +96,36 @@ class AudioPreprocessor:
         
         # 计算95分位数
         percentile_95 = np.percentile(lengths, 95)
-        # 确保窗口大小是模型输入长度的倍数
-        self.window_size = int(np.ceil(percentile_95 / self.input_length) * self.input_length)
-        print(f"计算得到的窗口大小: {self.window_size} (基于95分位数)")
+        print(f"95分位的音频长度: {percentile_95:.2f} 个采样点")
+        
+        # 计算这个长度能分成多少个完整的512长度窗口
+        self.window_count = int(percentile_95 // self.input_length)
+        # 确保至少有一个窗口
+        if self.window_count == 0:
+            self.window_count = 1
+            
+        # 计算总窗口大小（保持原属性名window_size）
+        self.window_size = self.window_count * self.input_length
+        
+        print(f"计算得到的窗口数量: {self.window_count} 个")
+        print(f"总窗口大小: {self.window_size} 个采样点")
         return self.window_size
     
     def split_into_windows(self, audio):
-        """将音频分割为固定长度的窗口"""
-        if self.window_size is None:
-            raise ValueError("请先调用calculate_window_size计算窗口大小")
+        """将音频分割为固定数量的窗口"""
+        if self.window_count is None or self.window_size is None:
+            raise ValueError("请先调用calculate_window_size计算窗口参数")
             
-        # 计算需要多少个模型输入长度的片段才能覆盖窗口
-        num_segments = self.window_size // self.input_length
-        
-        # 如果音频长度超过窗口大小，则截断
+        # 如果音频长度超过总窗口大小，则截断
         if len(audio) > self.window_size:
             audio = audio[:self.window_size]
-        # 如果音频长度不足窗口大小，则补零
+        # 如果音频长度不足总窗口大小，则补零
         else:
             audio = np.pad(audio, (0, self.window_size - len(audio)), mode='constant')
             
-        # 分割为多个模型输入长度的片段
+        # 分割为固定数量的窗口
         windows = []
-        for i in range(num_segments):
+        for i in range(self.window_count):
             start = i * self.input_length
             end = start + self.input_length
             window = audio[start:end]
@@ -126,6 +133,7 @@ class AudioPreprocessor:
             windows.append(window.reshape(1, -1))
             
         return np.array(windows)
+
 
 # 特征提取器
 class FeatureExtractor:

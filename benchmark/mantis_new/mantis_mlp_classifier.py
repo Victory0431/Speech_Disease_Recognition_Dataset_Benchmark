@@ -1,7 +1,10 @@
 import os
+import sys
+from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
+import argparse
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, random_split
 from sklearn.model_selection import train_test_split
@@ -13,6 +16,8 @@ from tqdm import tqdm
 import random
 from mantis.architecture import Mantis8M
 from mantis.trainer import MantisTrainer
+sys.path.append(str(Path(__file__).parent.parent/ "tools"))
+from configs.mantis_config import Config
 
 # 设置随机种子，确保结果可复现
 SEED = 42
@@ -23,32 +28,8 @@ if torch.cuda.is_available():
     torch.cuda.manual_seed(SEED)
     torch.backends.cudnn.deterministic = True
 
-# 配置参数
-class Config:
-    # 数据路径
-    DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Parkinson_KCL_2017"
-    # DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/COVID_19_CNN"
-    # DATASET_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/ICBHI"
-    LOCAL_MODEL_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/mantis/model/"
-    
-    # 音频参数
-    SAMPLE_RATE = 8000  # 降采样率
-    MODEL_INPUT_LENGTH = 512  # 模型要求的输入长度
-    
-    # 训练参数
-    BATCH_SIZE = 32
-    VAL_SPLIT = 0.15
-    TEST_SPLIT = 0.15
-    EPOCHS = 50
-    LEARNING_RATE = 1e-3
-    PATIENCE = 10  # 早停策略的耐心值
-    
-    # 设备配置
-    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    # MLP参数
-    HIDDEN_DIM = 128
-    DROPOUT_RATE = 0.3
+Config.DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 # 数据加载和预处理
 class SpeechDataset(Dataset):
@@ -80,19 +61,34 @@ class AudioPreprocessor:
         self.sample_rate = sample_rate
         self.input_length = input_length  # 每个窗口的长度，固定为512
         self.window_count = None  # 固定的窗口数量，基于95分位数计算
-        self.window_size = None  # 总窗口大小 = window_count × input_length，保持原属性名以便兼容
+        self.window_size = None  # 总窗口大小 = window_count × input_length
         
     def load_audio(self, file_path):
         """加载音频文件并降采样"""
-        audio, sr = librosa.load(file_path, sr=self.sample_rate)
-        return audio
+        try:
+            audio, sr = librosa.load(file_path, sr=self.sample_rate)
+            return audio
+        except Exception as e:
+            print(f"加载音频文件 {file_path} 失败: {str(e)}")
+            return None
     
     def calculate_window_size(self, audio_files):
         """根据音频长度的95分位数计算固定的窗口数量和总窗口大小"""
         lengths = []
         for file in tqdm(audio_files, desc="计算音频长度分布"):
             audio = self.load_audio(file)
-            lengths.append(len(audio))
+            # 只添加成功加载的音频长度
+            if audio is not None and len(audio) > 0:
+                lengths.append(len(audio))
+        
+        # 检查是否有有效的音频长度数据
+        if not lengths:  # 如果lengths为空
+            print("警告: 没有有效的音频文件或所有音频文件加载失败")
+            # 设置默认窗口参数
+            self.window_count = 1
+            self.window_size = self.input_length
+            print(f"使用默认窗口设置: 1个窗口，大小为{self.input_length}")
+            return self.window_size
         
         # 计算95分位数
         percentile_95 = np.percentile(lengths, 95)
@@ -104,7 +100,7 @@ class AudioPreprocessor:
         if self.window_count == 0:
             self.window_count = 1
             
-        # 计算总窗口大小（保持原属性名window_size）
+        # 计算总窗口大小
         self.window_size = self.window_count * self.input_length
         
         print(f"计算得到的窗口数量: {self.window_count} 个")
@@ -115,11 +111,15 @@ class AudioPreprocessor:
         """将音频分割为固定数量的窗口"""
         if self.window_count is None or self.window_size is None:
             raise ValueError("请先调用calculate_window_size计算窗口参数")
+        
+        # 处理空音频的情况
+        if audio is None or len(audio) == 0:
+            print("警告: 处理空音频，返回零矩阵窗口")
+            return np.zeros((self.window_count, 1, self.input_length))
             
-        # 如果音频长度超过总窗口大小，则截断
+        # 处理音频长度
         if len(audio) > self.window_size:
             audio = audio[:self.window_size]
-        # 如果音频长度不足总窗口大小，则补零
         else:
             audio = np.pad(audio, (0, self.window_size - len(audio)), mode='constant')
             
@@ -129,10 +129,10 @@ class AudioPreprocessor:
             start = i * self.input_length
             end = start + self.input_length
             window = audio[start:end]
-            # 添加通道维度 (n_channels=1)
             windows.append(window.reshape(1, -1))
             
         return np.array(windows)
+
 
 
 # 特征提取器
@@ -188,7 +188,7 @@ class MLPClassifier(nn.Module):
         return self.layers(x)
 
 # 训练器类
-class Trainer:
+class Trainer_v1:
     def __init__(self, model, train_loader, val_loader, test_loader, 
                  num_classes, device=Config.DEVICE):
         self.model = model.to(device)
@@ -350,8 +350,308 @@ class Trainer:
         print("训练曲线已保存为 training_curves.png")
         plt.close()
 
+class Trainer:
+    def __init__(self, model, train_loader, val_loader, test_loader, 
+                 num_classes, class_names, result_dir, device=Config.DEVICE):
+        # 保留原有初始化代码
+        self.model = model.to(device)
+        self.train_loader = train_loader
+        self.val_loader = val_loader
+        self.test_loader = test_loader
+        self.num_classes = num_classes
+        self.class_names = class_names  # 类别名称列表，用于混淆矩阵
+        self.result_dir = result_dir    # 结果保存目录
+        self.device = device
+        
+        # 新增：用于记录每个epoch的评价指标
+        self.epoch_metrics = []
+        
+        # 保留原有初始化代码
+        self.criterion = nn.CrossEntropyLoss()
+        self.optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer, mode='min', factor=0.5, patience=5, verbose=True
+        )
+        
+        self.train_losses = []
+        self.val_losses = []
+        self.train_accuracies = []
+        self.val_accuracies = []
+        self.best_val_loss = float('inf')
+        self.early_stop_counter = 0
+
+    # 保留train_epoch和evaluate方法不变...
+    def train_epoch(self):
+        """训练一个epoch"""
+        self.model.train()
+        total_loss = 0
+        all_preds = []
+        all_labels = []
+        
+        for batch in tqdm(self.train_loader, desc="训练"):
+            inputs, labels = batch
+            inputs, labels = inputs.to(self.device), labels.to(self.device)
+            
+            # 清零梯度
+            self.optimizer.zero_grad()
+            
+            # 前向传播
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            
+            # 反向传播和优化
+            loss.backward()
+            self.optimizer.step()
+            
+            # 记录
+            total_loss += loss.item()
+            preds = torch.argmax(outputs, dim=1)
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+        
+        # 计算平均损失和准确率
+        avg_loss = total_loss / len(self.train_loader)
+        accuracy = accuracy_score(all_labels, all_preds)
+        
+        return avg_loss, accuracy
+    
+    def evaluate(self, dataloader, is_test=False):
+        """评估模型"""
+        self.model.eval()
+        total_loss = 0
+        all_preds = []
+        all_labels = []
+        
+        with torch.no_grad():
+            for batch in tqdm(dataloader, desc="评估" if not is_test else "测试"):
+                inputs, labels = batch
+                inputs, labels = inputs.to(self.device), labels.to(self.device)
+                
+                outputs = self.model(inputs)
+                loss = self.criterion(outputs, labels)
+                
+                total_loss += loss.item()
+                preds = torch.argmax(outputs, dim=1)
+                all_preds.extend(preds.cpu().numpy())
+                all_labels.extend(labels.cpu().numpy())
+        
+        avg_loss = total_loss / len(dataloader)
+        accuracy = accuracy_score(all_labels, all_preds)
+        
+        if is_test:
+            print("\n测试集分类报告:")
+            print(classification_report(all_labels, all_preds))
+        
+        return avg_loss, accuracy, all_preds, all_labels
+
+    def train(self, epochs=Config.EPOCHS):
+        print(f"开始训练，使用设备: {self.device}")
+        
+        for epoch in range(epochs):
+            print(f"\nEpoch {epoch+1}/{epochs}")
+            print("-" * 50)
+            
+            # 训练
+            train_loss, train_acc = self.train_epoch()
+            self.train_losses.append(train_loss)
+            self.train_accuracies.append(train_acc)
+            
+            # 验证并获取详细指标
+            val_loss, val_acc, val_preds, val_labels = self.evaluate(self.val_loader)
+            self.val_losses.append(val_loss)
+            self.val_accuracies.append(val_acc)
+            
+            # 计算验证集的详细评价指标
+            val_report = classification_report(
+                val_labels, val_preds, 
+                labels=list(range(self.num_classes)),
+                target_names=self.class_names,
+                output_dict=True
+            )
+            
+            # 记录当前epoch的所有指标
+            self.epoch_metrics.append({
+                'epoch': epoch + 1,
+                'train_loss': train_loss,
+                'train_accuracy': train_acc,
+                'val_loss': val_loss,
+                'val_accuracy': val_acc,
+                'val_precision_macro': val_report['macro avg']['precision'],
+                'val_recall_macro': val_report['macro avg']['recall'],
+                'val_f1_macro': val_report['macro avg']['f1-score']
+            })
+            
+            print(f"训练损失: {train_loss:.4f} | 训练准确率: {train_acc:.4f}")
+            print(f"验证损失: {val_loss:.4f} | 验证准确率: {val_acc:.4f}")
+            print(f"验证F1分数(macro): {val_report['macro avg']['f1-score']:.4f}")
+            
+            # 学习率调度和早停策略（保留原有代码）
+            self.scheduler.step(val_loss)
+            
+            if val_loss < self.best_val_loss:
+                self.best_val_loss = val_loss
+                self.early_stop_counter = 0
+                # 保存最佳模型到结果目录
+                best_model_path = os.path.join(self.result_dir, "best_model.pth")
+                torch.save(self.model.state_dict(), best_model_path)
+                print(f"保存最佳模型到 {best_model_path}")
+            else:
+                self.early_stop_counter += 1
+                if self.early_stop_counter >= Config.PATIENCE:
+                    print(f"早停策略触发，在第 {epoch+1} 轮停止训练")
+                    break
+        
+        # 保存所有epoch的指标到CSV
+        self.save_metrics_to_csv()
+        
+        # 加载最佳模型并在测试集上评估
+        print("\n加载最佳模型并在测试集上评估...")
+        best_model_path = os.path.join(self.result_dir, "best_model.pth")
+        self.model.load_state_dict(torch.load(best_model_path))
+        test_loss, test_acc, test_preds, test_labels = self.evaluate(self.test_loader, is_test=True)
+        
+        # 计算测试集的详细评价指标并保存
+        self.save_test_metrics(test_loss, test_acc, test_preds, test_labels)
+        
+        # 绘制训练曲线和混淆矩阵
+        self.plot_training_curves()
+        self.plot_confusion_matrix(test_preds, test_labels)
+        
+        return test_acc, test_preds, test_labels
+    
+    def save_metrics_to_csv(self):
+        """将每个epoch的评价指标保存到CSV文件"""
+        import pandas as pd
+        metrics_df = pd.DataFrame(self.epoch_metrics)
+        metrics_path = os.path.join(self.result_dir, "epoch_metrics.csv")
+        metrics_df.to_csv(metrics_path, index=False)
+        print(f"各轮次评价指标已保存到 {metrics_path}")
+    
+    def save_test_metrics(self, test_loss, test_acc, test_preds, test_labels):
+        """保存测试集的最终评价指标到CSV"""
+        import pandas as pd
+        from sklearn.metrics import precision_score, recall_score, f1_score
+        
+        # 计算宏观平均指标
+        precision_macro = precision_score(test_labels, test_preds, average='macro')
+        recall_macro = recall_score(test_labels, test_preds, average='macro')
+        f1_macro = f1_score(test_labels, test_preds, average='macro')
+        
+        # 计算每个类别的指标
+        class_precision = precision_score(test_labels, test_preds, average=None)
+        class_recall = recall_score(test_labels, test_preds, average=None)
+        class_f1 = f1_score(test_labels, test_preds, average=None)
+        
+        # 保存宏观指标
+        macro_metrics = {
+            'dataset': os.path.basename(self.result_dir),
+            'test_loss': test_loss,
+            'test_accuracy': test_acc,
+            'test_precision_macro': precision_macro,
+            'test_recall_macro': recall_macro,
+            'test_f1_macro': f1_macro
+        }
+        
+        # 保存每个类别的指标
+        class_metrics = []
+        for i, class_name in enumerate(self.class_names):
+            class_metrics.append({
+                'dataset': os.path.basename(self.result_dir),
+                'class': class_name,
+                'precision': class_precision[i],
+                'recall': class_recall[i],
+                'f1_score': class_f1[i]
+            })
+        
+        # 保存到CSV
+        macro_df = pd.DataFrame([macro_metrics])
+        class_df = pd.DataFrame(class_metrics)
+        
+        # 单个数据集的测试结果
+        test_results_path = os.path.join(self.result_dir, "test_metrics.csv")
+        macro_df.to_csv(test_results_path, index=False)
+        
+        # 类别详细结果
+        class_results_path = os.path.join(self.result_dir, "class_metrics.csv")
+        class_df.to_csv(class_results_path, index=False)
+        
+        # 汇总到全局结果文件（所有数据集）
+        global_results_path = os.path.join(Config.RESULTS_ROOT, "all_datasets_test_metrics.csv")
+        if os.path.exists(global_results_path):
+            macro_df.to_csv(global_results_path, mode='a', header=False, index=False)
+        else:
+            macro_df.to_csv(global_results_path, index=False)
+        
+        print(f"测试集评价指标已保存到 {test_results_path}")
+    
+    def plot_training_curves(self):
+        """绘制训练曲线并保存到结果目录"""
+        plt.figure(figsize=(12, 4))
+        
+        # 损失曲线
+        plt.subplot(1, 2, 1)
+        plt.plot(self.train_losses, label='train loss')
+        plt.plot(self.val_losses, label='val loss')
+        plt.title('Loss Curves')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.legend()
+        
+        # 准确率曲线
+        plt.subplot(1, 2, 2)
+        plt.plot(self.train_accuracies, label='train Accuracy')
+        plt.plot(self.val_accuracies, label='val Accuracy')
+        plt.title('Accuracy Curves')
+        plt.xlabel('Epoch')
+        plt.ylabel('Accuracy')
+        plt.legend()
+        
+        plt.tight_layout()
+        curve_path = os.path.join(self.result_dir, 'training_curves.png')
+        plt.savefig(curve_path, dpi=300)
+        print(f"训练曲线已保存到 {curve_path}")
+        plt.close()
+    
+    def plot_confusion_matrix(self, y_pred, y_true):
+        """绘制混淆矩阵并保存"""
+        from sklearn.metrics import confusion_matrix
+        import seaborn as sns
+        
+        cm = confusion_matrix(y_true, y_pred)
+        
+        plt.figure(figsize=(10, 8))
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+                   xticklabels=self.class_names, 
+                   yticklabels=self.class_names)
+        plt.xlabel('Predicted')
+        plt.ylabel('True')
+        plt.title('Confusion Matrix')
+        
+        cm_path = os.path.join(self.result_dir, 'confusion_matrix.png')
+        plt.savefig(cm_path, dpi=300, bbox_inches='tight')
+        print(f"混淆矩阵已保存到 {cm_path}")
+        plt.close()
+
 # 主函数
 def main():
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='处理指定的语音疾病分类数据集')
+    parser.add_argument('dataset_path', type=str, help='数据集文件夹的路径')
+    args = parser.parse_args()
+    
+    # 验证数据集路径是否存在
+    if not os.path.isdir(args.dataset_path):
+        print(f"错误: 数据集路径 '{args.dataset_path}' 不存在或不是一个目录")
+        return
+
+    Config.DATASET_PATH = args.dataset_path
+    # 获取数据集名称并创建结果目录
+    dataset_name = os.path.basename(args.dataset_path)
+    result_dir = os.path.join(Config.RESULTS_ROOT, dataset_name)
+    os.makedirs(result_dir, exist_ok=True)
+    Config.RESULTS_DIR = result_dir
+
+
     # 1. 数据准备
     print("=" * 50)
     print("1. 数据准备")
@@ -449,7 +749,7 @@ def main():
     mlp = MLPClassifier(input_dim=X_train.shape[1], num_classes=num_classes)
     
     # 初始化训练器
-    trainer = Trainer(mlp, train_loader, val_loader, test_loader, num_classes)
+    trainer = Trainer(mlp, train_loader, val_loader, test_loader, num_classes,classes,Config.RESULTS_DIR)
     
     # 开始训练
     test_acc, test_preds, test_labels = trainer.train(epochs=Config.EPOCHS)

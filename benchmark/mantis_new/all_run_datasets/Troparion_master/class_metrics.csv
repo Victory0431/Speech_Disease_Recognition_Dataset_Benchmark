@@ -1,0 +1,3 @@
+dataset,class,precision,recall,f1_score
+Troparion_master,Pathology,0.375,1.0,0.5454545454545454
+Troparion_master,Control,1.0,0.16666666666666666,0.2857142857142857

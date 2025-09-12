@@ -367,7 +367,8 @@ def main():
         batch_size=Config.BATCH_SIZE,
         shuffle=True,
         num_workers=Config.NUM_WORKERS,
-        drop_last=True
+        drop_last=True,
+        multiprocessing_context='spawn'  # 新增
     )
     # 验证集
     val_dataset = DiseaseAudioDataset(val_df, preprocessor, processor, label2id)
@@ -376,7 +377,8 @@ def main():
         val_dataset,
         batch_size=Config.BATCH_SIZE,
         shuffle=False,
-        num_workers=Config.NUM_WORKERS
+        num_workers=Config.NUM_WORKERS,
+        multiprocessing_context='spawn'  # 新增
     )
     # 测试集
     test_dataset = DiseaseAudioDataset(test_df, preprocessor, processor, label2id)
@@ -385,7 +387,8 @@ def main():
         test_dataset,
         batch_size=Config.BATCH_SIZE,
         shuffle=False,
-        num_workers=Config.NUM_WORKERS
+        num_workers=Config.NUM_WORKERS,
+        multiprocessing_context='spawn'  # 新增
     )
 
     # Step 6: 初始化分类模型、损失、优化器

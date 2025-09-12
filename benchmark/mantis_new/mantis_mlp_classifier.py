@@ -87,28 +87,30 @@ class AudioPreprocessor:
             return None
     
     def calculate_window_size(self, audio_files):
-        """根据音频长度的95分位数计算固定的窗口数量和总窗口大小（128线程版）"""
+        """根据音频长度的95分位数计算固定的窗口数量和总窗口大小（128线程版），并限制最大音频长度为3分钟"""
         lengths = []
+        # 计算3分钟对应的采样点数 (sample_rate * 秒数)
+        max_samples = self.sample_rate * 180  # 3分钟 = 180秒
         
         # 定义单个文件处理函数
         def process_file(file):
             try:
                 audio = self.load_audio(file)
                 if audio is not None and len(audio) > 0:
-                    return len(audio)
+                    # 对于超过3分钟的音频，仅取前3分钟的长度参与计算
+                    audio_length = len(audio)
+                    truncated_length = min(audio_length, max_samples)
+                    return truncated_length
                 return None
             except Exception as e:
                 print(f"处理文件 {file} 时出错: {str(e)}")
                 return None
         
         # 使用128线程处理
-        print("多线程计算音频长度（128线程）...")
-        # 显式指定max_workers=128设置线程数
+        print(f"多线程计算音频长度（128线程），超过3分钟的音频将按3分钟计算...")
         with concurrent.futures.ThreadPoolExecutor(max_workers=128) as executor:
-            # 提交所有任务并获取结果
             futures = [executor.submit(process_file, file) for file in audio_files]
             
-            # 使用tqdm显示进度
             for future in tqdm(concurrent.futures.as_completed(futures), 
                              total=len(audio_files), 
                              desc="计算音频长度分布"):
@@ -116,7 +118,6 @@ class AudioPreprocessor:
                 if result is not None:
                     lengths.append(result)
         
-        # 检查是否有有效的音频长度数据
         if not lengths:
             print("警告: 没有有效的音频文件或所有音频文件加载失败")
             self.window_count = 1
@@ -124,9 +125,9 @@ class AudioPreprocessor:
             print(f"使用默认窗口设置: 1个窗口，大小为{self.input_length}")
             return self.window_size
         
-        # 计算95分位数（后续逻辑保持不变）
+        # 计算95分位数
         percentile_95 = np.percentile(lengths, 95)
-        print(f"95分位的音频长度: {percentile_95:.2f} 个采样点")
+        print(f"95分位的音频长度（最长不超过3分钟）: {percentile_95:.2f} 个采样点")
         
         self.window_count = int(percentile_95 // self.input_length)
         if self.window_count == 0:
@@ -134,9 +135,14 @@ class AudioPreprocessor:
             
         self.window_size = self.window_count * self.input_length
         
+        # 额外检查窗口数量是否过大，给出提示
+        if self.window_count > 2000:
+            print(f"警告: 窗口数量较多（{self.window_count}个），可能会占用较多显存")
+            
         print(f"计算得到的窗口数量: {self.window_count} 个")
         print(f"总窗口大小: {self.window_size} 个采样点")
         return self.window_size
+
     
     def split_into_windows(self, audio):
         """将音频分割为固定数量的窗口"""
@@ -698,7 +704,8 @@ def main():
     for label, class_name in enumerate(classes):
         class_dir = os.path.join(Config.DATASET_PATH, class_name)
         for file in os.listdir(class_dir):
-            if file.endswith('.wav'):
+            # 同时支持 .wav 和 .mp3 格式（不区分大小写，避免漏检）
+            if file.lower().endswith(('.wav', '.mp3')):
                 audio_files.append(os.path.join(class_dir, file))
                 labels.append(label)
     

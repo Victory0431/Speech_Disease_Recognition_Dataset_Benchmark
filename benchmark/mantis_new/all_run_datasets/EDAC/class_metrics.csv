@@ -1,0 +1,3 @@
+dataset,class,precision,recall,f1_score
+EDAC,Non-Depression,1.0,1.0,1.0
+EDAC,Depression,1.0,1.0,1.0

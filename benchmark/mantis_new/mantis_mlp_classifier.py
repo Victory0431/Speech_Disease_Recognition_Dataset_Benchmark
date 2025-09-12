@@ -18,6 +18,9 @@ from mantis.architecture import Mantis8M
 from mantis.trainer import MantisTrainer
 sys.path.append(str(Path(__file__).parent.parent/ "tools"))
 from configs.mantis_config import Config
+import concurrent.futures
+import warnings
+
 
 # 设置随机种子，确保结果可复现
 SEED = 42
@@ -62,45 +65,73 @@ class AudioPreprocessor:
         self.input_length = input_length  # 每个窗口的长度，固定为512
         self.window_count = None  # 固定的窗口数量，基于95分位数计算
         self.window_size = None  # 总窗口大小 = window_count × input_length
+    
+    def _setup_warnings(self):
+        """设置警告过滤器以消除特定警告"""
+        # 过滤librosa的PySoundFile失败警告
+        warnings.filterwarnings("ignore", message="PySoundFile failed. Trying audioread instead.")
+        # 过滤librosa的__audioread_load弃用警告
+        warnings.filterwarnings("ignore", category=FutureWarning, 
+                               message="librosa.core.audio.__audioread_load")
         
     def load_audio(self, file_path):
         """加载音频文件并降采样"""
         try:
-            audio, sr = librosa.load(file_path, sr=self.sample_rate)
+            # 加载时临时禁用警告
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                audio, sr = librosa.load(file_path, sr=self.sample_rate)
             return audio
         except Exception as e:
             print(f"加载音频文件 {file_path} 失败: {str(e)}")
             return None
     
     def calculate_window_size(self, audio_files):
-        """根据音频长度的95分位数计算固定的窗口数量和总窗口大小"""
+        """根据音频长度的95分位数计算固定的窗口数量和总窗口大小（128线程版）"""
         lengths = []
-        for file in tqdm(audio_files, desc="计算音频长度分布"):
-            audio = self.load_audio(file)
-            # 只添加成功加载的音频长度
-            if audio is not None and len(audio) > 0:
-                lengths.append(len(audio))
+        
+        # 定义单个文件处理函数
+        def process_file(file):
+            try:
+                audio = self.load_audio(file)
+                if audio is not None and len(audio) > 0:
+                    return len(audio)
+                return None
+            except Exception as e:
+                print(f"处理文件 {file} 时出错: {str(e)}")
+                return None
+        
+        # 使用128线程处理
+        print("多线程计算音频长度（128线程）...")
+        # 显式指定max_workers=128设置线程数
+        with concurrent.futures.ThreadPoolExecutor(max_workers=128) as executor:
+            # 提交所有任务并获取结果
+            futures = [executor.submit(process_file, file) for file in audio_files]
+            
+            # 使用tqdm显示进度
+            for future in tqdm(concurrent.futures.as_completed(futures), 
+                             total=len(audio_files), 
+                             desc="计算音频长度分布"):
+                result = future.result()
+                if result is not None:
+                    lengths.append(result)
         
         # 检查是否有有效的音频长度数据
-        if not lengths:  # 如果lengths为空
+        if not lengths:
             print("警告: 没有有效的音频文件或所有音频文件加载失败")
-            # 设置默认窗口参数
             self.window_count = 1
             self.window_size = self.input_length
             print(f"使用默认窗口设置: 1个窗口，大小为{self.input_length}")
             return self.window_size
         
-        # 计算95分位数
+        # 计算95分位数（后续逻辑保持不变）
         percentile_95 = np.percentile(lengths, 95)
         print(f"95分位的音频长度: {percentile_95:.2f} 个采样点")
         
-        # 计算这个长度能分成多少个完整的512长度窗口
         self.window_count = int(percentile_95 // self.input_length)
-        # 确保至少有一个窗口
         if self.window_count == 0:
             self.window_count = 1
             
-        # 计算总窗口大小
         self.window_size = self.window_count * self.input_length
         
         print(f"计算得到的窗口数量: {self.window_count} 个")
@@ -687,23 +718,75 @@ def main():
     
     feature_extractor = FeatureExtractor()
     
+    # print("开始预处理和特征提取...")
+    # for file, label in tqdm(zip(audio_files, labels), total=len(audio_files), desc="处理音频"):
+    #     try:
+    #         # 加载音频
+    #         audio = preprocessor.load_audio(file)
+    #         # 分割为窗口
+    #         windows = preprocessor.split_into_windows(audio)
+    #         # 提取特征
+    #         features = feature_extractor.extract_features(windows)
+    #         # 池化特征
+    #         pooled_feature = feature_extractor.pool_features(features)
+    #         # 保存结果
+    #         features_list.append(pooled_feature)
+    #         labels_list.append(label)
+    #     except Exception as e:
+    #         print(f"处理文件 {file} 时出错: {str(e)}")
+    #         continue
     print("开始预处理和特征提取...")
-    for file, label in tqdm(zip(audio_files, labels), total=len(audio_files), desc="处理音频"):
+
+    # 定义单个文件的处理函数
+    def process_audio_file(args):
+        """处理单个音频文件的函数，用于多线程执行"""
+        file, label, preprocessor, feature_extractor = args
         try:
             # 加载音频
             audio = preprocessor.load_audio(file)
+            if audio is None:
+                return None, None
+                
             # 分割为窗口
             windows = preprocessor.split_into_windows(audio)
+            
             # 提取特征
             features = feature_extractor.extract_features(windows)
+            
             # 池化特征
             pooled_feature = feature_extractor.pool_features(features)
-            # 保存结果
-            features_list.append(pooled_feature)
-            labels_list.append(label)
+            
+            return pooled_feature, label
         except Exception as e:
             print(f"处理文件 {file} 时出错: {str(e)}")
-            continue
+            return None, None
+
+        # 准备线程池所需的参数列表
+    params = [
+        (file, label, preprocessor, feature_extractor) 
+        for file, label in zip(audio_files, labels)
+    ]
+
+    # 使用多线程处理
+    features_list = []
+    labels_list = []
+
+    # 使用128线程（可根据系统性能调整）
+    with concurrent.futures.ThreadPoolExecutor(max_workers=64) as executor:
+        # 提交所有任务并获取结果迭代器
+        results = list(tqdm(
+            executor.map(process_audio_file, params),
+            total=len(audio_files),
+            desc="处理音频"
+        ))
+
+    # 整理结果（过滤掉处理失败的文件）
+    for feature, label in results:
+        if feature is not None and label is not None:
+            features_list.append(feature)
+            labels_list.append(label)
+
+    print(f"预处理完成，成功处理 {len(features_list)}/{len(audio_files)} 个音频文件")
     
     # 3. 数据集划分
     print("\n" + "=" * 50)

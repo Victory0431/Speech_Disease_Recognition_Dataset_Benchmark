@@ -54,7 +54,7 @@ def main():
         d for d in os.listdir(main_dir)
         if os.path.isdir(os.path.join(main_dir, d))
     ]
-    dataset_dirs = dataset_dirs[:4]
+    # dataset_dirs = dataset_dirs[:4]
     
     if not dataset_dirs:
         logger.warning(f"在主目录 {main_dir} 下未找到任何数据集文件夹")
@@ -76,13 +76,25 @@ def main():
             # 构建命令
             command = ["python", model_script, dataset_path]
             
-            # 执行命令
-            result = subprocess.run(
+            # 执行命令，实时捕获并输出
+            with subprocess.Popen(
                 command,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # 合并 stderr 到 stdout
                 text=True,
-                check=True
-            )
+                bufsize=1,  # 行缓冲
+                universal_newlines=True
+            ) as proc:
+                # 实时读取并显示输出
+                for line in proc.stdout:
+                    line = line.strip()
+                    print(f"[{dataset_name}] {line}")  # 控制台显示，带数据集名称前缀
+                    logger.info(f"[{dataset_name}] 模型输出: {line}")  # 记录到日志
+                
+                # 等待进程完成并获取返回码
+                return_code = proc.wait()
+                if return_code != 0:
+                    raise subprocess.CalledProcessError(return_code, command)
             
             # 计算耗时
             elapsed_time = time.time() - start_time
@@ -91,16 +103,11 @@ def main():
             # 记录成功信息
             logger.info(f"数据集 {dataset_name} 训练完成")
             logger.info(f"耗时: {elapsed_minutes:.2f} 分钟 ({elapsed_time:.2f} 秒)")
-            
-            # 如果有输出，记录到日志
-            if result.stdout:
-                logger.debug(f"程序输出: {result.stdout}")
                 
         except subprocess.CalledProcessError as e:
             # 处理命令执行错误
             elapsed_time = time.time() - start_time
             logger.error(f"数据集 {dataset_name} 训练失败，错误代码: {e.returncode}")
-            logger.error(f"错误输出: {e.stderr}")
             logger.error(f"已运行时间: {elapsed_time:.2f} 秒")
             
         except Exception as e:
@@ -111,3 +118,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

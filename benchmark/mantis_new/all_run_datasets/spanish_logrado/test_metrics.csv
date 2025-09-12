@@ -1,0 +1,2 @@
+dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
+spanish_logrado,0.6547515168786049,0.8613861386138614,0.8492381716118684,0.8678209459459459,0.855122950819672

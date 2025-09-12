@@ -1,0 +1,2 @@
+dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
+Parkinson_3700,0.09266164293512702,0.9633699633699634,0.9639601984683421,0.9627622377622378,0.9632437090194284

@@ -1,0 +1,2 @@
+dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
+COVID_19_CNN,0.30518803000450134,0.96,0.9791666666666667,0.75,0.8226950354609929

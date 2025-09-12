@@ -1,0 +1,2 @@
+dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
+TORGO,0.14341044048947024,0.9436672967863894,0.943512613556818,0.9320501373238244,0.9373484303524802

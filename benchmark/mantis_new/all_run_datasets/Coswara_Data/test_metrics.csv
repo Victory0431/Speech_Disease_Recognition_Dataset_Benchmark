@@ -1,0 +1,2 @@
+dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
+Coswara_Data,1.3937070924660255,0.550849743728082,0.35442701443104957,0.18529715704526845,0.18314486624659743

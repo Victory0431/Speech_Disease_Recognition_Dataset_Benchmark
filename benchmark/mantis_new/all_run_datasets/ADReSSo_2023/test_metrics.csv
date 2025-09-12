@@ -1,0 +1,2 @@
+dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
+ADReSSo_2023,0.7350931167602539,0.42857142857142855,0.21428571428571427,0.5,0.3

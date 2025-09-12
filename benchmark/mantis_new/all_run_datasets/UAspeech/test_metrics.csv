@@ -1,0 +1,2 @@
+dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
+UAspeech,0.13646028796765244,0.9456127291337117,0.9455038968695306,0.945702353721569,0.9455822121251882

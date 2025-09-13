@@ -19,8 +19,8 @@ class Config:
     
     # 音频参数
     SAMPLE_RATE = 16000
-    WINDOW_SIZE = 512
-    MAX_AUDIO_DURATION = 180  # 20秒截断
+    WINDOW_SIZE = 16000
+    MAX_AUDIO_DURATION = 1800  # 20秒截断
     MAX_AUDIO_SAMPLES = SAMPLE_RATE * MAX_AUDIO_DURATION
     
     # 推理参数

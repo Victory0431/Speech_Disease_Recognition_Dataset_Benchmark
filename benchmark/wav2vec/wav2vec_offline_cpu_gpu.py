@@ -22,7 +22,7 @@ class Config:
     # 音频核心参数（与之前保持一致）
     SAMPLE_RATE = 16000
     WINDOW_SIZE = 1024  # 单个窗口采样点（64ms）
-    MAX_AUDIO_DURATION = 20  # 最大音频时长（20秒，覆盖绝大多数音频）
+    MAX_AUDIO_DURATION = 180  # 最大音频时长（20秒，覆盖绝大多数音频）
     MAX_AUDIO_SAMPLES = SAMPLE_RATE * MAX_AUDIO_DURATION  # 16000*20=320000采样点
     
     # 并行与批量参数（关键提速配置）

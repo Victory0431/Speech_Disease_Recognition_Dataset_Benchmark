@@ -12,15 +12,15 @@ from sklearn.model_selection import train_test_split
 # ===================== 1. 配置参数（线性逻辑，无需并行参数） =====================
 class Config:
     # 路径配置
-    DATA_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/EDAC"
+    DATA_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Asthma_Detection_Tawfik"
     MODEL_PATH = "/mnt/data/test1/repo/wav2vec_2/model"
     TEMP_DIR = "./temp_windows"  # 保存分窗结果的临时目录
-    SAVE_FEAT_DIR = "/mnt/data/test1/wav2vec2_parallel_features/02"  # 最终特征保存目录
+    SAVE_FEAT_DIR = "/mnt/data/test1/wav2vec2_parallel_features/a180s_640000"  # 最终特征保存目录
     
     # 音频参数
     SAMPLE_RATE = 16000
-    WINDOW_SIZE = 1024
-    MAX_AUDIO_DURATION = 20  # 20秒截断
+    WINDOW_SIZE = 512
+    MAX_AUDIO_DURATION = 180  # 20秒截断
     MAX_AUDIO_SAMPLES = SAMPLE_RATE * MAX_AUDIO_DURATION
     
     # 推理参数

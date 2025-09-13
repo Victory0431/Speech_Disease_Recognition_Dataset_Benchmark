@@ -1,0 +1,406 @@
+nohup: ignoring input
+2025-09-13 03:52:07,167 - INFO - 开始收集所有类别目录...
+2025-09-13 03:52:07,348 - INFO - 共发现 83 个有效类别目录，当前GPU 3 处理范围: 30-40（共 10 个）
+2025-09-13 03:52:07,348 - INFO - 
+==================================================
+2025-09-13 03:52:07,348 - INFO - GPU 3 处理 1/10（全局 31/83）
+2025-09-13 03:52:07,348 - INFO - 数据集: lung_sound_3200
+2025-09-13 03:52:07,348 - INFO - 类别: HeartFailure
+2025-09-13 03:52:07,348 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/HeartFailure
+2025-09-13 03:52:07,348 - INFO - 开始时间: 2025-09-13 03:52:07
+2025-09-13 03:52:07,348 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/HeartFailure --gpu 3
+2025-09-13 03:52:23,969 - INFO - 处理成功！耗时: 0分16秒
+2025-09-13 03:52:23,969 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=lung_sound_3200 | 类别=HeartFailure（使用GPU cuda:3）
+✅ 收集到 54 个有效音频
+
+📊 分析音频长度分布（共 54 个文件）
+✅ 全局窗口参数：窗口数=13 | 总采样点=416000
+
+🚀 开始为「lung_sound_3200__HeartFailure」分窗（共 54 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：54
+   - 元信息保存：./temp_windows/meta_lung_sound_3200__HeartFailure.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「lung_sound_3200__HeartFailure」推理（共 54 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「lung_sound_3200__HeartFailure」，共 54 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：54
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__HeartFailure.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__HeartFailure_labels.npy
+
+2025-09-13 03:52:23,969 - INFO - 
+==================================================
+2025-09-13 03:52:23,969 - INFO - GPU 3 处理 2/10（全局 32/83）
+2025-09-13 03:52:23,969 - INFO - 数据集: lung_sound_3200
+2025-09-13 03:52:23,969 - INFO - 类别: Asthma
+2025-09-13 03:52:23,970 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/Asthma
+2025-09-13 03:52:23,970 - INFO - 开始时间: 2025-09-13 03:52:23
+2025-09-13 03:52:23,970 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/Asthma --gpu 3
+2025-09-13 03:52:43,892 - INFO - 处理成功！耗时: 0分19秒
+2025-09-13 03:52:43,892 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=lung_sound_3200 | 类别=Asthma（使用GPU cuda:3）
+✅ 收集到 96 个有效音频
+
+📊 分析音频长度分布（共 96 个文件）
+✅ 全局窗口参数：窗口数=15 | 总采样点=480000
+
+🚀 开始为「lung_sound_3200__Asthma」分窗（共 96 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：96
+   - 元信息保存：./temp_windows/meta_lung_sound_3200__Asthma.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「lung_sound_3200__Asthma」推理（共 96 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「lung_sound_3200__Asthma」，共 96 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：96
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__Asthma.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__Asthma_labels.npy
+
+2025-09-13 03:52:43,892 - INFO - 
+==================================================
+2025-09-13 03:52:43,893 - INFO - GPU 3 处理 3/10（全局 33/83）
+2025-09-13 03:52:43,893 - INFO - 数据集: lung_sound_3200
+2025-09-13 03:52:43,893 - INFO - 类别: COPD
+2025-09-13 03:52:43,893 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/COPD
+2025-09-13 03:52:43,893 - INFO - 开始时间: 2025-09-13 03:52:43
+2025-09-13 03:52:43,893 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/COPD --gpu 3
+2025-09-13 03:52:55,834 - INFO - 处理成功！耗时: 0分11秒
+2025-09-13 03:52:55,834 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=lung_sound_3200 | 类别=COPD（使用GPU cuda:3）
+✅ 收集到 27 个有效音频
+
+📊 分析音频长度分布（共 27 个文件）
+✅ 全局窗口参数：窗口数=15 | 总采样点=480000
+
+🚀 开始为「lung_sound_3200__COPD」分窗（共 27 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：27
+   - 元信息保存：./temp_windows/meta_lung_sound_3200__COPD.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「lung_sound_3200__COPD」推理（共 27 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「lung_sound_3200__COPD」，共 27 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：27
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__COPD.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__COPD_labels.npy
+
+2025-09-13 03:52:55,835 - INFO - 
+==================================================
+2025-09-13 03:52:55,835 - INFO - GPU 3 处理 4/10（全局 34/83）
+2025-09-13 03:52:55,835 - INFO - 数据集: lung_sound_3200
+2025-09-13 03:52:55,835 - INFO - 类别: Normal
+2025-09-13 03:52:55,835 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/Normal
+2025-09-13 03:52:55,835 - INFO - 开始时间: 2025-09-13 03:52:55
+2025-09-13 03:52:55,835 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/lung_sound_3200/Normal --gpu 3
+2025-09-13 03:53:18,070 - INFO - 处理成功！耗时: 0分22秒
+2025-09-13 03:53:18,071 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=lung_sound_3200 | 类别=Normal（使用GPU cuda:3）
+✅ 收集到 105 个有效音频
+
+📊 分析音频长度分布（共 105 个文件）
+✅ 全局窗口参数：窗口数=14 | 总采样点=448000
+
+🚀 开始为「lung_sound_3200__Normal」分窗（共 105 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：105
+   - 元信息保存：./temp_windows/meta_lung_sound_3200__Normal.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「lung_sound_3200__Normal」推理（共 105 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「lung_sound_3200__Normal」，共 105 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：105
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__Normal.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/lung_sound_3200__and__Normal_labels.npy
+
+2025-09-13 03:53:18,071 - INFO - 
+==================================================
+2025-09-13 03:53:18,071 - INFO - GPU 3 处理 5/10（全局 35/83）
+2025-09-13 03:53:18,071 - INFO - 数据集: SLI_dataset
+2025-09-13 03:53:18,071 - INFO - 类别: healthy
+2025-09-13 03:53:18,071 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/SLI_dataset/healthy
+2025-09-13 03:53:18,071 - INFO - 开始时间: 2025-09-13 03:53:18
+2025-09-13 03:53:18,071 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/SLI_dataset/healthy --gpu 3
+2025-09-13 03:56:23,275 - INFO - 处理成功！耗时: 3分5秒
+2025-09-13 03:56:23,276 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=SLI_dataset | 类别=healthy（使用GPU cuda:3）
+✅ 收集到 1083 个有效音频
+
+📊 分析音频长度分布（共 1083 个文件）
+✅ 全局窗口参数：窗口数=1 | 总采样点=32000
+
+🚀 开始为「SLI_dataset__healthy」分窗（共 1083 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：1083
+   - 元信息保存：./temp_windows/meta_SLI_dataset__healthy.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「SLI_dataset__healthy」推理（共 1083 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「SLI_dataset__healthy」，共 1083 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：1083
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/SLI_dataset__and__healthy.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/SLI_dataset__and__healthy_labels.npy
+
+2025-09-13 03:56:23,276 - INFO - 
+==================================================
+2025-09-13 03:56:23,276 - INFO - GPU 3 处理 6/10（全局 36/83）
+2025-09-13 03:56:23,276 - INFO - 数据集: SLI_dataset
+2025-09-13 03:56:23,276 - INFO - 类别: patients
+2025-09-13 03:56:23,276 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/SLI_dataset/patients
+2025-09-13 03:56:23,276 - INFO - 开始时间: 2025-09-13 03:56:23
+2025-09-13 03:56:23,277 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/SLI_dataset/patients --gpu 3
+2025-09-13 04:01:52,881 - INFO - 处理成功！耗时: 5分29秒
+2025-09-13 04:01:52,881 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=SLI_dataset | 类别=patients（使用GPU cuda:3）
+✅ 收集到 2173 个有效音频
+
+📊 分析音频长度分布（共 2173 个文件）
+✅ 全局窗口参数：窗口数=1 | 总采样点=32000
+
+🚀 开始为「SLI_dataset__patients」分窗（共 2173 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：2173
+   - 元信息保存：./temp_windows/meta_SLI_dataset__patients.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「SLI_dataset__patients」推理（共 2173 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「SLI_dataset__patients」，共 2173 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：2173
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/SLI_dataset__and__patients.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/SLI_dataset__and__patients_labels.npy
+
+2025-09-13 04:01:52,882 - INFO - 
+==================================================
+2025-09-13 04:01:52,882 - INFO - GPU 3 处理 7/10（全局 37/83）
+2025-09-13 04:01:52,882 - INFO - 数据集: Coswara_Data
+2025-09-13 04:01:52,882 - INFO - 类别: positive_moderate
+2025-09-13 04:01:52,882 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/positive_moderate
+2025-09-13 04:01:52,883 - INFO - 开始时间: 2025-09-13 04:01:52
+2025-09-13 04:01:52,883 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/positive_moderate --gpu 3
+2025-09-13 04:05:32,735 - INFO - 处理成功！耗时: 3分39秒
+2025-09-13 04:05:32,736 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=Coswara_Data | 类别=positive_moderate（使用GPU cuda:3）
+✅ 收集到 1485 个有效音频
+
+📊 分析音频长度分布（共 1485 个文件）
+✅ 全局窗口参数：窗口数=11 | 总采样点=352000
+
+🚀 开始为「Coswara_Data__positive_moderate」分窗（共 1485 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：1485
+   - 元信息保存：./temp_windows/meta_Coswara_Data__positive_moderate.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「Coswara_Data__positive_moderate」推理（共 1485 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「Coswara_Data__positive_moderate」，共 1485 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：1485
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__positive_moderate.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__positive_moderate_labels.npy
+
+2025-09-13 04:05:32,736 - INFO - 
+==================================================
+2025-09-13 04:05:32,736 - INFO - GPU 3 处理 8/10（全局 38/83）
+2025-09-13 04:05:32,736 - INFO - 数据集: Coswara_Data
+2025-09-13 04:05:32,736 - INFO - 类别: positive_asymp
+2025-09-13 04:05:32,736 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/positive_asymp
+2025-09-13 04:05:32,736 - INFO - 开始时间: 2025-09-13 04:05:32
+2025-09-13 04:05:32,736 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/positive_asymp --gpu 3
+2025-09-13 04:07:13,666 - INFO - 处理成功！耗时: 1分40秒
+2025-09-13 04:07:13,666 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=Coswara_Data | 类别=positive_asymp（使用GPU cuda:3）
+✅ 收集到 810 个有效音频
+
+📊 分析音频长度分布（共 810 个文件）
+✅ 全局窗口参数：窗口数=12 | 总采样点=384000
+
+🚀 开始为「Coswara_Data__positive_asymp」分窗（共 810 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：810
+   - 元信息保存：./temp_windows/meta_Coswara_Data__positive_asymp.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「Coswara_Data__positive_asymp」推理（共 810 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「Coswara_Data__positive_asymp」，共 810 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：810
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__positive_asymp.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__positive_asymp_labels.npy
+
+2025-09-13 04:07:13,666 - INFO - 
+==================================================
+2025-09-13 04:07:13,666 - INFO - GPU 3 处理 9/10（全局 39/83）
+2025-09-13 04:07:13,667 - INFO - 数据集: Coswara_Data
+2025-09-13 04:07:13,667 - INFO - 类别: resp_illness_not_identified
+2025-09-13 04:07:13,667 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/resp_illness_not_identified
+2025-09-13 04:07:13,667 - INFO - 开始时间: 2025-09-13 04:07:13
+2025-09-13 04:07:13,667 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/resp_illness_not_identified --gpu 3
+2025-09-13 04:10:02,262 - INFO - 处理成功！耗时: 2分48秒
+2025-09-13 04:10:02,262 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=Coswara_Data | 类别=resp_illness_not_identified（使用GPU cuda:3）
+✅ 收集到 1413 个有效音频
+
+📊 分析音频长度分布（共 1413 个文件）
+✅ 全局窗口参数：窗口数=12 | 总采样点=384000
+
+🚀 开始为「Coswara_Data__resp_illness_not_identified」分窗（共 1413 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：1413
+   - 元信息保存：./temp_windows/meta_Coswara_Data__resp_illness_not_identified.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「Coswara_Data__resp_illness_not_identified」推理（共 1413 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「Coswara_Data__resp_illness_not_identified」，共 1413 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：1413
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__resp_illness_not_identified.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__resp_illness_not_identified_labels.npy
+
+2025-09-13 04:10:02,262 - INFO - 
+==================================================
+2025-09-13 04:10:02,262 - INFO - GPU 3 处理 10/10（全局 40/83）
+2025-09-13 04:10:02,262 - INFO - 数据集: Coswara_Data
+2025-09-13 04:10:02,262 - INFO - 类别: no_resp_illness_exposed
+2025-09-13 04:10:02,262 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/no_resp_illness_exposed
+2025-09-13 04:10:02,262 - INFO - 开始时间: 2025-09-13 04:10:02
+2025-09-13 04:10:02,262 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/Coswara_Data/no_resp_illness_exposed --gpu 3
+2025-09-13 04:14:34,926 - INFO - 处理成功！耗时: 4分32秒
+2025-09-13 04:14:34,927 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=Coswara_Data | 类别=no_resp_illness_exposed（使用GPU cuda:3）
+✅ 收集到 2232 个有效音频
+
+📊 分析音频长度分布（共 2232 个文件）
+✅ 全局窗口参数：窗口数=11 | 总采样点=352000
+
+🚀 开始为「Coswara_Data__no_resp_illness_exposed」分窗（共 2232 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：2232
+   - 元信息保存：./temp_windows/meta_Coswara_Data__no_resp_illness_exposed.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:3）
+
+🚀 开始为「Coswara_Data__no_resp_illness_exposed」推理（共 2232 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「Coswara_Data__no_resp_illness_exposed」，共 2232 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：2232
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__no_resp_illness_exposed.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/Coswara_Data__and__no_resp_illness_exposed_labels.npy
+
+2025-09-13 04:14:34,927 - INFO - 
+==================================================
+2025-09-13 04:14:34,928 - INFO - GPU 3 处理完成！共处理 10 个类别（范围: 30-40）

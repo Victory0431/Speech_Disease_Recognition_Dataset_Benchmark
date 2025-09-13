@@ -1,0 +1,117 @@
+nohup: ignoring input
+2025-09-13 04:13:53,078 - INFO - 开始收集所有类别目录...
+2025-09-13 04:13:53,638 - ERROR - 无效的范围参数！总数量: 83, 输入范围: 79-84
+2025-09-13 04:18:42,824 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=UGAkan | 类别=Cerebral palsy（使用GPU cuda:0）
+✅ 收集到 7716 个有效音频
+
+📊 分析音频长度分布（共 7716 个文件）
+✅ 全局窗口参数：窗口数=14 | 总采样点=448000
+
+🚀 开始为「UGAkan__Cerebral palsy」分窗（共 7716 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：7716
+   - 元信息保存：./temp_windows/meta_UGAkan__Cerebral palsy.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:0）
+
+🚀 开始为「UGAkan__Cerebral palsy」推理（共 7716 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「UGAkan__Cerebral palsy」，共 7716 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：7716
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/UGAkan__and__Cerebral palsy.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/UGAkan__and__Cerebral palsy_labels.npy
+
+2025-09-13 04:18:42,824 - INFO - 
+==================================================
+2025-09-13 04:18:42,825 - INFO - GPU 0 处理 2/3（全局 75/83）
+2025-09-13 04:18:42,825 - INFO - 数据集: UGAkan
+2025-09-13 04:18:42,825 - INFO - 类别: Stroke
+2025-09-13 04:18:42,825 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/UGAkan/Stroke
+2025-09-13 04:18:42,825 - INFO - 开始时间: 2025-09-13 04:18:42
+2025-09-13 04:18:42,825 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/UGAkan/Stroke --gpu 0
+2025-09-13 04:19:07,005 - INFO - 处理成功！耗时: 0分24秒
+2025-09-13 04:19:07,005 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=UGAkan | 类别=Stroke（使用GPU cuda:0）
+✅ 收集到 295 个有效音频
+
+📊 分析音频长度分布（共 295 个文件）
+✅ 全局窗口参数：窗口数=9 | 总采样点=288000
+
+🚀 开始为「UGAkan__Stroke」分窗（共 295 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：295
+   - 元信息保存：./temp_windows/meta_UGAkan__Stroke.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:0）
+
+🚀 开始为「UGAkan__Stroke」推理（共 295 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「UGAkan__Stroke」，共 295 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：295
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/UGAkan__and__Stroke.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/UGAkan__and__Stroke_labels.npy
+
+2025-09-13 04:19:07,005 - INFO - 
+==================================================
+2025-09-13 04:19:07,005 - INFO - GPU 0 处理 3/3（全局 76/83）
+2025-09-13 04:19:07,005 - INFO - 数据集: UGAkan
+2025-09-13 04:19:07,006 - INFO - 类别: Stammering
+2025-09-13 04:19:07,006 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/UGAkan/Stammering
+2025-09-13 04:19:07,006 - INFO - 开始时间: 2025-09-13 04:19:07
+2025-09-13 04:19:07,006 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/UGAkan/Stammering --gpu 0
+2025-09-13 04:24:00,210 - INFO - 处理成功！耗时: 4分53秒
+2025-09-13 04:24:00,210 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=UGAkan | 类别=Stammering（使用GPU cuda:0）
+✅ 收集到 4475 个有效音频
+
+📊 分析音频长度分布（共 4475 个文件）
+✅ 全局窗口参数：窗口数=15 | 总采样点=480000
+
+🚀 开始为「UGAkan__Stammering」分窗（共 4475 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：4475
+   - 元信息保存：./temp_windows/meta_UGAkan__Stammering.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:0）
+
+🚀 开始为「UGAkan__Stammering」推理（共 4475 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「UGAkan__Stammering」，共 4475 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：4475
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/UGAkan__and__Stammering.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/UGAkan__and__Stammering_labels.npy
+
+2025-09-13 04:24:00,210 - INFO - 
+==================================================
+2025-09-13 04:24:00,210 - INFO - GPU 0 处理完成！共处理 3 个类别（范围: 73-76）

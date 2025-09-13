@@ -1,0 +1,171 @@
+nohup: ignoring input
+2025-09-13 03:52:30,035 - INFO - 开始收集所有类别目录...
+2025-09-13 03:52:30,208 - INFO - 共发现 83 个有效类别目录，当前GPU 6 处理范围: 60-70（共 10 个）
+2025-09-13 03:52:30,208 - INFO - 
+==================================================
+2025-09-13 03:52:30,208 - INFO - GPU 6 处理 1/10（全局 61/83）
+2025-09-13 03:52:30,208 - INFO - 数据集: DAC
+2025-09-13 03:52:30,208 - INFO - 类别: Non-Depression
+2025-09-13 03:52:30,208 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/DAC/Non-Depression
+2025-09-13 03:52:30,208 - INFO - 开始时间: 2025-09-13 03:52:30
+2025-09-13 03:52:30,208 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/DAC/Non-Depression --gpu 6
+2025-09-13 03:56:30,519 - INFO - 处理成功！耗时: 4分0秒
+2025-09-13 03:56:30,519 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=DAC | 类别=Non-Depression（使用GPU cuda:6）
+✅ 收集到 99 个有效音频
+
+📊 分析音频长度分布（共 99 个文件）
+✅ 全局窗口参数：窗口数=662 | 总采样点=21184000
+
+🚀 开始为「DAC__Non-Depression」分窗（共 99 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：99
+   - 元信息保存：./temp_windows/meta_DAC__Non-Depression.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:6）
+
+🚀 开始为「DAC__Non-Depression」推理（共 99 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「DAC__Non-Depression」，共 99 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：99
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/DAC__and__Non-Depression.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/DAC__and__Non-Depression_labels.npy
+
+2025-09-13 03:56:30,520 - INFO - 
+==================================================
+2025-09-13 03:56:30,520 - INFO - GPU 6 处理 2/10（全局 62/83）
+2025-09-13 03:56:30,520 - INFO - 数据集: DAC
+2025-09-13 03:56:30,520 - INFO - 类别: Depression
+2025-09-13 03:56:30,520 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/DAC/Depression
+2025-09-13 03:56:30,520 - INFO - 开始时间: 2025-09-13 03:56:30
+2025-09-13 03:56:30,520 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/DAC/Depression --gpu 6
+2025-09-13 03:58:36,452 - INFO - 处理成功！耗时: 2分5秒
+2025-09-13 03:58:36,452 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=DAC | 类别=Depression（使用GPU cuda:6）
+✅ 收集到 42 个有效音频
+
+📊 分析音频长度分布（共 42 个文件）
+✅ 全局窗口参数：窗口数=787 | 总采样点=25184000
+
+🚀 开始为「DAC__Depression」分窗（共 42 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：42
+   - 元信息保存：./temp_windows/meta_DAC__Depression.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:6）
+
+🚀 开始为「DAC__Depression」推理（共 42 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「DAC__Depression」，共 42 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：42
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/DAC__and__Depression.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/DAC__and__Depression_labels.npy
+
+2025-09-13 03:58:36,452 - INFO - 
+==================================================
+2025-09-13 03:58:36,453 - INFO - GPU 6 处理 3/10（全局 63/83）
+2025-09-13 03:58:36,453 - INFO - 数据集: ADReSSo_2023
+2025-09-13 03:58:36,453 - INFO - 类别: ProbableAD
+2025-09-13 03:58:36,453 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/ADReSSo_2023/ProbableAD
+2025-09-13 03:58:36,453 - INFO - 开始时间: 2025-09-13 03:58:36
+2025-09-13 03:58:36,453 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/ADReSSo_2023/ProbableAD --gpu 6
+2025-09-13 04:01:04,842 - INFO - 处理成功！耗时: 2分28秒
+2025-09-13 04:01:04,842 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=ADReSSo_2023 | 类别=ProbableAD（使用GPU cuda:6）
+✅ 收集到 144 个有效音频
+
+📊 分析音频长度分布（共 144 个文件）
+✅ 全局窗口参数：窗口数=79 | 总采样点=2528000
+
+🚀 开始为「ADReSSo_2023__ProbableAD」分窗（共 144 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：144
+   - 元信息保存：./temp_windows/meta_ADReSSo_2023__ProbableAD.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:6）
+
+🚀 开始为「ADReSSo_2023__ProbableAD」推理（共 144 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「ADReSSo_2023__ProbableAD」，共 144 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：144
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/ADReSSo_2023__and__ProbableAD.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/ADReSSo_2023__and__ProbableAD_labels.npy
+
+2025-09-13 04:01:04,843 - INFO - 
+==================================================
+2025-09-13 04:01:04,843 - INFO - GPU 6 处理 4/10（全局 64/83）
+2025-09-13 04:01:04,843 - INFO - 数据集: ADReSSo_2023
+2025-09-13 04:01:04,843 - INFO - 类别: Control
+2025-09-13 04:01:04,843 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/ADReSSo_2023/Control
+2025-09-13 04:01:04,843 - INFO - 开始时间: 2025-09-13 04:01:04
+2025-09-13 04:01:04,843 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/ADReSSo_2023/Control --gpu 6
+2025-09-13 04:02:35,361 - INFO - 处理成功！耗时: 1分30秒
+2025-09-13 04:02:35,361 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=ADReSSo_2023 | 类别=Control（使用GPU cuda:6）
+✅ 收集到 139 个有效音频
+
+📊 分析音频长度分布（共 139 个文件）
+✅ 全局窗口参数：窗口数=58 | 总采样点=1856000
+
+🚀 开始为「ADReSSo_2023__Control」分窗（共 139 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：139
+   - 元信息保存：./temp_windows/meta_ADReSSo_2023__Control.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:6）
+
+🚀 开始为「ADReSSo_2023__Control」推理（共 139 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「ADReSSo_2023__Control」，共 139 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：139
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/ADReSSo_2023__and__Control.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/ADReSSo_2023__and__Control_labels.npy
+
+2025-09-13 04:02:35,361 - INFO - 
+==================================================
+2025-09-13 04:02:35,361 - INFO - GPU 6 处理 5/10（全局 65/83）
+2025-09-13 04:02:35,361 - INFO - 数据集: pitt
+2025-09-13 04:02:35,362 - INFO - 类别: Dementia
+2025-09-13 04:02:35,362 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/pitt/Dementia
+2025-09-13 04:02:35,362 - INFO - 开始时间: 2025-09-13 04:02:35
+2025-09-13 04:02:35,362 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/pitt/Dementia --gpu 6

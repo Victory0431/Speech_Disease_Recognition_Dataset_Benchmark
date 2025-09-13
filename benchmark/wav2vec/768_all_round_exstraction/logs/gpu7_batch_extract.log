@@ -1,0 +1,11 @@
+nohup: ignoring input
+2025-09-13 03:52:42,127 - INFO - 开始收集所有类别目录...
+2025-09-13 03:52:42,375 - INFO - 共发现 83 个有效类别目录，当前GPU 7 处理范围: 70-80（共 10 个）
+2025-09-13 03:52:42,375 - INFO - 
+==================================================
+2025-09-13 03:52:42,375 - INFO - GPU 7 处理 1/10（全局 71/83）
+2025-09-13 03:52:42,375 - INFO - 数据集: UAspeech
+2025-09-13 03:52:42,375 - INFO - 类别: Healthy
+2025-09-13 03:52:42,375 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/UAspeech/Healthy
+2025-09-13 03:52:42,375 - INFO - 开始时间: 2025-09-13 03:52:42
+2025-09-13 03:52:42,375 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/UAspeech/Healthy --gpu 7

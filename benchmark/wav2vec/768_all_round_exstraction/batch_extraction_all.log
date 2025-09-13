@@ -293,3 +293,43 @@ Ignored unknown kwarg option normalize
 2025-09-13 03:40:43,149 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/EDAC/Non-Depression
 2025-09-13 03:40:43,149 - INFO - 开始时间: 2025-09-13 03:40:43
 2025-09-13 03:40:43,149 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/EDAC/Non-Depression
+2025-09-13 03:49:46,716 - INFO - 处理成功！耗时: 9分3秒
+2025-09-13 03:49:46,716 - INFO - 独立特征提取脚本输出:
+🔍 检测到：数据集=EDAC | 类别=Non-Depression
+✅ 收集到 209 个有效音频
+
+📊 分析音频长度分布（共 209 个文件）
+✅ 全局窗口参数：窗口数=692 | 总采样点=22144000
+
+🚀 开始为「EDAC__Non-Depression」分窗（共 209 个音频）
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+Ignored unknown kwarg option normalize
+
+✅ 分窗完成！
+   - 有效音频数：209
+   - 元信息保存：./temp_windows/meta_EDAC__Non-Depression.csv
+   - 窗口文件目录：./temp_windows
+
+🔧 加载Wav2Vec2模型（设备：cuda:7）
+
+🚀 开始为「EDAC__Non-Depression」推理（共 209 个音频，批次大小=64）
+
+✅ GPU推理完成！窗口特征保存于：./temp_windows
+
+📊 聚合窗口特征（「EDAC__Non-Depression」，共 209 个音频）
+
+🎉 特征聚合完成！
+   - 有效音频数：209
+   - 特征文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/EDAC__and__Non-Depression.npy
+   - 标签文件：/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic/EDAC__and__Non-Depression_labels.npy
+
+2025-09-13 03:49:46,716 - INFO - 
+==================================================
+2025-09-13 03:49:46,716 - INFO - 开始处理 9/83
+2025-09-13 03:49:46,717 - INFO - 数据集: EDAC
+2025-09-13 03:49:46,717 - INFO - 类别: Depression
+2025-09-13 03:49:46,717 - INFO - 路径: /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/EDAC/Depression
+2025-09-13 03:49:46,717 - INFO - 开始时间: 2025-09-13 03:49:46
+2025-09-13 03:49:46,717 - INFO - 执行命令: python /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction.py --input_dir /mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets/EDAC/Depression

@@ -1,0 +1,59 @@
+                             precision    recall  f1-score   support
+
+             positive_asymp       0.12      0.21      0.15       162
+                   Disorder       1.00      0.90      0.95     17421
+                 depression       0.08      0.61      0.15        18
+               HeartFailure       0.27      0.36      0.31        11
+                   patients       0.84      0.98      0.91       435
+    no_resp_illness_exposed       0.27      0.07      0.11       446
+                  Parkinson       0.51      0.87      0.65        94
+                  rhonching       0.29      0.70      0.41        10
+                         BL       0.59      0.38      0.47       743
+             Non-Depression       0.68      0.58      0.63        62
+                      Maint       0.39      0.39      0.39       333
+                   COVID-19       0.25      0.30      0.27       263
+                    Control       0.39      0.55      0.46        85
+                 Depression       0.26      0.50      0.34        22
+                 Stammering       0.74      0.79      0.77       895
+                      Cleft       0.90      0.91      0.90       365
+                     Stroke       0.49      1.00      0.66        59
+                    Therapy       0.46      0.56      0.50       387
+                  parkinson       0.23      0.96      0.37       346
+           under_validation       0.14      0.53      0.22       146
+                         CP       0.70      0.82      0.76       108
+                       Suit       0.14      0.88      0.24        17
+            speech_disorder       0.32      0.94      0.47        85
+                     Asthma       0.38      0.47      0.42        19
+                symptomatic       0.62      0.60      0.61       775
+resp_illness_not_identified       0.13      0.19      0.15       283
+                         AD       0.61      0.69      0.65        16
+                  pneumonia       0.51      0.40      0.45        57
+                   disorder       0.98      1.00      0.99       102
+                       Post       0.35      0.24      0.28       284
+                      COVID       0.05      0.60      0.09         5
+                       BCLP       0.67      0.87      0.76        76
+                   Wheezing       0.56      0.63      0.59        35
+                       UCLP       0.55      0.74      0.63       104
+                  Pneumonia       0.23      0.71      0.34         7
+                 Creptation       0.66      0.63      0.64        43
+                     asthma       0.61      0.69      0.65        58
+                       copd       0.97      0.74      0.84        80
+             recovered_full       0.14      0.11      0.12       263
+                        MCI       0.45      0.78      0.57        18
+                     Normal       0.48      0.46      0.47        26
+             Cerebral palsy       0.86      0.80      0.83      1543
+                        Mid       0.18      0.32      0.23       168
+                  Pathology       0.25      0.67      0.36         3
+                  Bronchial       0.61      0.81      0.69        21
+                       COPD       0.53      0.60      0.56        15
+                  Non-COVID       0.12      0.69      0.20        29
+                       URTI       0.50      0.75      0.60         4
+                 ProbableAD       0.22      0.59      0.32        29
+                   Dementia       0.83      0.62      0.71       209
+          positive_moderate       0.20      0.20      0.20       297
+              positive_mild       0.31      0.13      0.18       767
+                         HC       0.35      0.86      0.49        21
+
+                   accuracy                           0.77     27870
+                  macro avg       0.45      0.61      0.49     27870
+               weighted avg       0.83      0.77      0.79     27870

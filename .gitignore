@@ -1,6 +1,9 @@
 *.log
 *.npy
 *.png
+*.pth
+*.patch
+events.out.tfevents.*
 /dataset
 /fresh_datasets
 /768_npy_charactristic

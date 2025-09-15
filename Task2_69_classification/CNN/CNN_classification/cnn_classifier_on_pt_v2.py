@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-import shutil
+# import shutil
 from datetime import datetime
 from collections import defaultdict
 
@@ -25,10 +25,11 @@ class Config:
     LEARNING_RATE = 1e-4
     WEIGHT_DECAY = 1e-5
     DROPOUT = 0.3
-    DEVICE = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")
+    DEVICE = torch.device("cuda:7" if torch.cuda.is_available() else "cpu")
     
     # 数据处理参数
     DATA_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/Task2_69_classification/CNN/CNN_features_v2"
+    DATA_PATH = '/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/Task2_69_classification/CNN/CNN_features_v4_2048'
     TEST_SIZE = 0.2
     RANDOM_STATE = 42
     MAX_SAMPLES_PER_CLASS = 200
@@ -38,7 +39,7 @@ class Config:
     PLOT_CONFUSION_MATRIX = True
     
     # 日志和保存参数
-    LOG_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/Task2_69_classification/CNN/Tensor_logs"
+    LOG_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/Task2_69_classification/CNN/Tensor_logs_2048"
     TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
     BEST_MODEL_PATH = os.path.join(LOG_DIR, f"best_model_{TIMESTAMP}.pt")
     METRICS_CSV = os.path.join(LOG_DIR, f"training_metrics_{TIMESTAMP}.csv")

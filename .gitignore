@@ -3,11 +3,15 @@
 *.png
 *.pth
 *.patch
+*.pyc
+*.txt
+*.csv
 events.out.tfevents.*
 /dataset
 /fresh_datasets
 /768_npy_charactristic
-/benchmark
+/benchmark/*
+!/benchmark/wav2vec
 
 
 

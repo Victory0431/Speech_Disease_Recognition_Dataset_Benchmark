@@ -1,2 +1,16 @@
 /dataset
 /fresh_datasets
+/768_npy_charactristic
+/benchmark
+/benchmark/wav2vec/datasets_independent_classifition/logs
+/benchmark/wav2vec/datasets_independent_classifition/results
+/benchmark/new_mlp/logs
+/benchmark/new_cnn/logs
+/benchmark/new_cnn/results
+/benchmark/new_mlp/results
+
+
+
+
+
+

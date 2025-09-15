@@ -6,6 +6,7 @@
 *.pyc
 *.txt
 *.csv
+*.done
 events.out.tfevents.*
 /dataset
 /fresh_datasets

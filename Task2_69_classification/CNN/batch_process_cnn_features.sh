@@ -2,7 +2,7 @@
 
 # 配置路径
 MAIN_DATA_DIR="/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets"
-EXTRACT_SCRIPT="/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/Task2_69_classification/CNN/cnn_feature_extractor.py"
+EXTRACT_SCRIPT="/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/Task2_69_classification/CNN/cnn_feature_extractor_v2.py"
 LOG_DIR="/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/Task2_69_classification/CNN/CNN_extraction_logs"
 
 # 创建日志目录

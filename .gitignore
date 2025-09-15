@@ -1,4 +1,6 @@
 *.log
+*.npy
+*.png
 /dataset
 /fresh_datasets
 /768_npy_charactristic

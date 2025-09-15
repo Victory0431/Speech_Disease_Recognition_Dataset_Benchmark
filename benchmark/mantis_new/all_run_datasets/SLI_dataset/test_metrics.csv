@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-SLI_dataset,0.06333896360865765,0.9877300613496932,0.9847923681257014,0.9877300613496932,0.9862382739212008

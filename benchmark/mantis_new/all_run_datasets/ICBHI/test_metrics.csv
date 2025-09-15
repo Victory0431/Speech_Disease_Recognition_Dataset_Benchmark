@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-ICBHI,0.6818203330039978,0.7272727272727273,0.6785714285714286,0.68125,0.6708333333333334

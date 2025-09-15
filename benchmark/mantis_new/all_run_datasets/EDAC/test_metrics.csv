@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-EDAC,0.5912051498889923,0.7619047619047619,0.38095238095238093,0.5,0.43243243243243246

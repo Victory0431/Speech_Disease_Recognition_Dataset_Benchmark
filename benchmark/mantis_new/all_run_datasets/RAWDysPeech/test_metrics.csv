@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-RAWDysPeech,0.1889162334286614,0.9299888147810597,0.9313759659969887,0.9297812682624336,0.9299057444529797

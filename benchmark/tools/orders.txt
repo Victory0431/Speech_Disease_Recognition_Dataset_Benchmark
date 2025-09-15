@@ -1,1 +1,0 @@
-conda activate Time_Mixer_env

@@ -1,3 +1,0 @@
-dataset,class,precision,recall,f1_score
-Parkinson_KCL_2017,Healthy,0.8571428571428571,0.8571428571428571,0.8571428571428571
-Parkinson_KCL_2017,Parkinson,0.75,0.75,0.75

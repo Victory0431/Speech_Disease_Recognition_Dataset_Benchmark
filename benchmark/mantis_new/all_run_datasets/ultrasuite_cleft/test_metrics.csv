@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-ultrasuite_cleft,0.661777389901025,0.7511520737327189,0.7686886212605747,0.7573435504469987,0.7611510445820101

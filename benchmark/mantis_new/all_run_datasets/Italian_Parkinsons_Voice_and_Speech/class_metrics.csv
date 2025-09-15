@@ -1,3 +1,0 @@
-dataset,class,precision,recall,f1_score
-Italian_Parkinsons_Voice_and_Speech,Healthy,1.0,1.0,1.0
-Italian_Parkinsons_Voice_and_Speech,Parkinson,1.0,1.0,1.0

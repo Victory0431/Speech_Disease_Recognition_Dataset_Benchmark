@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-ultrasuite_uxssd,1.0102912485599518,0.6071428571428571,0.600279287328763,0.5849195735525156,0.5882053341307475

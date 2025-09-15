@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-HLS_CMDS,0.1811268006761869,0.9382716049382716,0.475,0.4935064935064935,0.4840764331210191

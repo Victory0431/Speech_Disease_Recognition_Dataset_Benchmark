@@ -1,4 +1,0 @@
-dataset,class,precision,recall,f1_score
-COUGHVID_V3,symptomatic,0.0,0.0,0.0
-COUGHVID_V3,healthy,0.7490322580645161,1.0,0.8565105127259314
-COUGHVID_V3,COVID-19,0.0,0.0,0.0

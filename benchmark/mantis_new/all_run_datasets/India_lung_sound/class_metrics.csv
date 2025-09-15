@@ -1,5 +1,0 @@
-dataset,class,precision,recall,f1_score
-India_lung_sound,Wheezing,0.6111111111111112,0.4230769230769231,0.5
-India_lung_sound,Creptation,0.8529411764705882,0.8787878787878788,0.8656716417910447
-India_lung_sound,rhonching,0.25,0.375,0.3
-India_lung_sound,Normal,0.5,1.0,0.6666666666666666

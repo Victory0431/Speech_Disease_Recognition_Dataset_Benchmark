@@ -1,2 +1,0 @@
-dataset,test_loss,test_accuracy,test_precision_macro,test_recall_macro,test_f1_macro
-Italian_Parkinsons_Voice_and_Speech,0.010395550169050694,1.0,1.0,1.0,1.0

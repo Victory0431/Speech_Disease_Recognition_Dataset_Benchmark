@@ -8,7 +8,7 @@ import argparse  # 新增：用于解析范围参数
 
 # ===================== 配置参数 =====================
 FRESH_DATASETS_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/fresh_datasets"
-EXTRACTION_SCRIPT_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu.py"
+EXTRACTION_SCRIPT_PATH = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_all_round_exstraction/wav2vec_768_all_round_exstraction_gpu_check_first_v3.py"
 
 # 日志配置
 logging.basicConfig(

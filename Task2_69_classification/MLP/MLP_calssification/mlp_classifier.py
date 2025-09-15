@@ -19,7 +19,7 @@ from datetime import datetime
 class Config:
     # 训练参数
     BATCH_SIZE = 64        # 批次大小
-    EPOCHS = 50            # 训练轮次
+    EPOCHS = 10            # 训练轮次
     LEARNING_RATE = 1e-4   # 学习率
     WEIGHT_DECAY = 1e-5    # 权重衰减（防过拟合）
     DROPOUT = 0.3          # Dropout比例
@@ -62,6 +62,7 @@ def load_features():
             parts = filename.replace(".npy", "").split("__and__")
             if len(parts) == 2:
                 dataset_name, class_name = parts
+                class_name = dataset_name + '__' + class_name
                 
                 # 获取类别标签（使用索引作为数字标签）
                 if class_name not in label_names:
@@ -402,7 +403,7 @@ def evaluate_model(model_path, test_loader, num_classes, label_names):
     # 绘制混淆矩阵
     if Config.PLOT_CONFUSION_MATRIX:
         cm = confusion_matrix(all_labels, all_preds)
-        plt.figure(figsize=(12, 10))
+        plt.figure(figsize=(24, 20))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                    xticklabels=label_names, 
                    yticklabels=label_names)

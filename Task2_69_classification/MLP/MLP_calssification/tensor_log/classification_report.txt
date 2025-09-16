@@ -1,74 +1,74 @@
                                                 precision    recall  f1-score   support
 
-                  Coswara_Data__positive_asymp       0.06      0.07      0.07       162
-                            UAspeech__Disorder       0.81      0.94      0.87     13923
-                              EATD__depression       0.05      0.72      0.10        18
-                 lung_sound_3200__HeartFailure       0.00      0.00      0.00        11
-                         SLI_dataset__patients       0.73      0.93      0.82       435
-         Coswara_Data__no_resp_illness_exposed       0.15      0.20      0.17       446
-                 Parkinson_KCL_2017__Parkinson       0.12      1.00      0.21         6
-                   India_lung_sound__rhonching       0.14      0.70      0.23        10
-                          ultrasuite_uxssd__BL       0.36      0.26      0.30       187
-                           DAC__Non-Depression       0.19      0.25      0.21        20
-                         ultrasuite_upx__Maint       0.24      0.51      0.32       166
-                         COUGHVID_V3__COVID-19       0.11      0.16      0.13       263
-                               TORGO__Disorder       0.37      0.38      0.38      1235
-                            ultrasuite_upx__BL       0.52      0.18      0.27       556
-                                 pitt__Control       0.33      0.80      0.47        49
-                              EDAC__Depression       0.19      0.31      0.24        13
-                         ADReSSo_2023__Control       0.23      0.39      0.29        28
-                            UGAkan__Stammering       0.59      0.72      0.65       895
-                                 UGAkan__Cleft       0.65      0.85      0.74       365
-                            EasyCall__Disorder       0.93      0.99      0.96      2262
-                                UGAkan__Stroke       0.29      0.98      0.45        59
-                     ultrasuite_uxssd__Therapy       0.28      0.33      0.30       199
-                     Parkinson_3700__parkinson       0.16      0.66      0.25       346
-                Coswara_Data__under_validation       0.13      0.46      0.20       146
-                          ultrasuite_cleft__CP       0.51      0.66      0.57       108
-                               DAC__Depression       0.08      0.38      0.13         8
-                          ultrasuite_upx__Suit       0.10      0.83      0.19        18
-              spanish_logrado__speech_disorder       0.04      0.94      0.08        85
-                       lung_sound_3200__Asthma       0.09      0.11      0.10        19
-                      COUGHVID_V3__symptomatic       0.52      0.50      0.51       775
-     Coswara_Data__resp_illness_not_identified       0.18      0.17      0.18       283
-                 NCMMSC2021_AD_Competition__AD       0.28      0.69      0.39        16
-            Asthma_Detection_Tawfik__pneumonia       0.50      0.28      0.36        57
-                            HLS_CMDS__disorder       0.92      0.96      0.94       102
-                          ultrasuite_upx__Post       0.19      0.18      0.19       168
-                           COVID_19_CNN__COVID       0.01      1.00      0.03         5
-                        ultrasuite_cleft__BCLP       0.28      0.39      0.32        76
-                    India_lung_sound__Wheezing       1.00      0.20      0.33        35
-                       ultrasuite_upx__Therapy       0.41      0.74      0.53       188
-                        ultrasuite_cleft__UCLP       0.32      0.67      0.44       104
-Italian_Parkinsons_Voice_and_Speech__Parkinson       0.34      0.57      0.42        87
-                        ultrasuite_uxssd__Post       0.20      0.40      0.27       115
-                              ICBHI__Pneumonia       0.15      0.57      0.24         7
-                  India_lung_sound__Creptation       0.36      0.30      0.33        43
-               Asthma_Detection_Tawfik__asthma       0.43      0.45      0.44        58
-                 Asthma_Detection_Tawfik__copd       0.51      0.56      0.54        80
-                  Coswara_Data__recovered_full       0.06      0.02      0.03       263
-                NCMMSC2021_AD_Competition__MCI       0.12      0.74      0.21        19
-                       ultrasuite_uxssd__Maint       0.39      0.47      0.43       166
-                       lung_sound_3200__Normal       0.22      0.24      0.23        21
-                        UGAkan__Cerebral palsy       0.77      0.62      0.69      1543
-                         ultrasuite_uxssd__Mid       0.25      0.22      0.23        78
-                           ultrasuite_upx__Mid       0.16      0.16      0.16        90
-                   Troparion_master__Pathology       0.08      0.67      0.15         3
-                      India_lung_sound__Normal       0.16      0.80      0.27         5
-            Asthma_Detection_Tawfik__Bronchial       0.25      0.86      0.38        21
-                         lung_sound_3200__COPD       0.00      0.00      0.00         5
-                          EDAC__Non-Depression       0.33      0.02      0.04        42
-                       COVID_19_CNN__Non-COVID       0.06      0.38      0.10        29
-                          RAWDysPeech__Disease       0.92      0.52      0.67     15971
-                                   ICBHI__URTI       0.40      0.80      0.53         5
-                      ADReSSo_2023__ProbableAD       0.17      0.48      0.25        29
-                                pitt__Dementia       0.81      0.50      0.62       209
-               Coswara_Data__positive_moderate       0.14      0.08      0.10       297
-                     Troparion_master__Control       0.14      0.38      0.20         8
-                   Coswara_Data__positive_mild       0.21      0.03      0.05       767
-                 NCMMSC2021_AD_Competition__HC       0.26      0.91      0.40        22
-                                   ICBHI__COPD       0.37      0.70      0.48        10
+                  Coswara_Data__positive_asymp       0.11      0.14      0.12       162
+                            UAspeech__Disorder       0.89      0.91      0.90     13923
+                              EATD__depression       0.14      0.89      0.24        18
+                 lung_sound_3200__HeartFailure       0.36      0.36      0.36        11
+                         SLI_dataset__patients       0.92      0.96      0.94       435
+         Coswara_Data__no_resp_illness_exposed       0.23      0.14      0.17       446
+                 Parkinson_KCL_2017__Parkinson       0.67      0.67      0.67         6
+                   India_lung_sound__rhonching       0.40      0.60      0.48        10
+                          ultrasuite_uxssd__BL       0.60      0.57      0.58       187
+                           DAC__Non-Depression       0.21      0.50      0.29        20
+                         ultrasuite_upx__Maint       0.55      0.60      0.57       166
+                         COUGHVID_V3__COVID-19       0.17      0.21      0.19       263
+                               TORGO__Disorder       0.39      0.61      0.48      1235
+                            ultrasuite_upx__BL       0.76      0.45      0.57       556
+                                 pitt__Control       0.48      0.90      0.62        49
+                              EDAC__Depression       0.19      0.23      0.21        13
+                         ADReSSo_2023__Control       0.31      0.50      0.38        28
+                            UGAkan__Stammering       0.76      0.85      0.80       895
+                                 UGAkan__Cleft       0.91      0.94      0.92       365
+                            EasyCall__Disorder       0.98      0.99      0.99      2262
+                                UGAkan__Stroke       0.52      1.00      0.69        59
+                     ultrasuite_uxssd__Therapy       0.47      0.39      0.43       199
+                     Parkinson_3700__parkinson       0.21      0.73      0.32       346
+                Coswara_Data__under_validation       0.16      0.43      0.23       146
+                          ultrasuite_cleft__CP       0.69      0.86      0.77       108
+                               DAC__Depression       0.00      0.00      0.00         8
+                          ultrasuite_upx__Suit       0.22      0.83      0.35        18
+              spanish_logrado__speech_disorder       0.18      0.99      0.31        85
+                       lung_sound_3200__Asthma       0.20      0.16      0.18        19
+                      COUGHVID_V3__symptomatic       0.56      0.61      0.58       775
+     Coswara_Data__resp_illness_not_identified       0.19      0.17      0.18       283
+                 NCMMSC2021_AD_Competition__AD       0.63      0.75      0.69        16
+            Asthma_Detection_Tawfik__pneumonia       0.72      0.72      0.72        57
+                            HLS_CMDS__disorder       0.97      1.00      0.99       102
+                          ultrasuite_upx__Post       0.44      0.48      0.46       168
+                           COVID_19_CNN__COVID       0.09      0.80      0.16         5
+                        ultrasuite_cleft__BCLP       0.76      0.89      0.82        76
+                    India_lung_sound__Wheezing       0.73      0.54      0.62        35
+                       ultrasuite_upx__Therapy       0.74      0.91      0.82       188
+                        ultrasuite_cleft__UCLP       0.66      0.81      0.72       104
+Italian_Parkinsons_Voice_and_Speech__Parkinson       0.65      0.90      0.75        87
+                        ultrasuite_uxssd__Post       0.36      0.63      0.46       115
+                              ICBHI__Pneumonia       0.38      0.71      0.50         7
+                  India_lung_sound__Creptation       0.70      0.72      0.71        43
+               Asthma_Detection_Tawfik__asthma       0.67      0.74      0.70        58
+                 Asthma_Detection_Tawfik__copd       0.88      0.76      0.82        80
+                  Coswara_Data__recovered_full       0.09      0.10      0.10       263
+                NCMMSC2021_AD_Competition__MCI       0.67      0.84      0.74        19
+                       ultrasuite_uxssd__Maint       0.55      0.64      0.59       166
+                       lung_sound_3200__Normal       0.42      0.38      0.40        21
+                        UGAkan__Cerebral palsy       0.88      0.80      0.84      1543
+                         ultrasuite_uxssd__Mid       0.34      0.59      0.43        78
+                           ultrasuite_upx__Mid       0.27      0.51      0.35        90
+                   Troparion_master__Pathology       0.18      0.67      0.29         3
+                      India_lung_sound__Normal       0.22      0.40      0.29         5
+            Asthma_Detection_Tawfik__Bronchial       0.63      0.90      0.75        21
+                         lung_sound_3200__COPD       0.25      0.40      0.31         5
+                          EDAC__Non-Depression       0.28      0.12      0.17        42
+                       COVID_19_CNN__Non-COVID       0.11      0.69      0.20        29
+                          RAWDysPeech__Disease       0.91      0.73      0.81     15971
+                                   ICBHI__URTI       0.80      0.80      0.80         5
+                      ADReSSo_2023__ProbableAD       0.27      0.55      0.36        29
+                                pitt__Dementia       0.90      0.58      0.71       209
+               Coswara_Data__positive_moderate       0.16      0.29      0.21       297
+                     Troparion_master__Control       0.40      0.50      0.44         8
+                   Coswara_Data__positive_mild       0.30      0.21      0.24       767
+                 NCMMSC2021_AD_Competition__HC       0.59      0.91      0.71        22
+                                   ICBHI__COPD       0.50      0.80      0.62        10
 
-                                      accuracy                           0.66     43840
-                                     macro avg       0.31      0.50      0.33     43840
-                                  weighted avg       0.75      0.66      0.68     43840
+                                      accuracy                           0.77     43840
+                                     macro avg       0.48      0.62      0.51     43840
+                                  weighted avg       0.81      0.77      0.78     43840

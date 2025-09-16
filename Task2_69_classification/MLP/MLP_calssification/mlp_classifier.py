@@ -19,7 +19,7 @@ from datetime import datetime
 class Config:
     # 训练参数
     BATCH_SIZE = 64        # 批次大小
-    EPOCHS = 10            # 训练轮次
+    EPOCHS = 150            # 训练轮次
     LEARNING_RATE = 1e-4   # 学习率
     WEIGHT_DECAY = 1e-5    # 权重衰减（防过拟合）
     DROPOUT = 0.3          # Dropout比例

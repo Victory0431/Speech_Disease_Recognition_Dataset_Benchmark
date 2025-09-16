@@ -25,14 +25,14 @@ class Config:
     # 核心路径
     FEAT_ROOT = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/768_npy_charactristic"  # 特征文件目录
     SAVE_MODEL_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_classification_mlp/mlp_rid_healthy"  # 最优模型保存目录
-    PLOT_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_classification_mlp/mlp_cut_in_200_batch_128_epoch_160_300_2e4"  # 图表/日志保存目录
+    PLOT_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_classification_mlp/mlp_cut_in_200_batch_64_epoch_150_1e4"  # 图表/日志保存目录
     SAVE_MODEL_DIR = PLOT_DIR
     TB_LOG_DIR = "/mnt/data/test1/Speech_Disease_Recognition_Dataset_Benchmark/benchmark/wav2vec/768_classification_mlp/tb_logs"  # TensorBoard日志目录
     
     # 训练参数
-    BATCH_SIZE = 128        # 批次大小
-    EPOCHS = 160            # 训练轮次
-    LEARNING_RATE = 2e-4   # 学习率
+    BATCH_SIZE = 64        # 批次大小
+    EPOCHS = 150            # 训练轮次
+    LEARNING_RATE = 1e-4   # 学习率
     WEIGHT_DECAY = 1e-5    # 权重衰减（防过拟合）
     DROPOUT = 0.3          # Dropout比例
     DEVICE = torch.device("cuda:5" if torch.cuda.is_available() else "cpu")  # GPU设备
@@ -42,7 +42,7 @@ class Config:
     RANDOM_STATE = 42      # 随机种子（保证结果可复现）
     N_SMOTE_NEIGHBORS = 5  # SMOTE过采样的近邻数
     OVERSAMPLING_STRATEGY = "smote"  # 过采样策略
-    MAX_SAMPLES_PER_CLASS = 300      # 每类过采样后的最大样本数
+    MAX_SAMPLES_PER_CLASS = 200      # 每类过采样后的最大样本数
     
     # 评估参数
     EVAL_METRIC = "weighted"  # 指标计算方式（weighted=考虑类别不平衡）

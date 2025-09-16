@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument("--learning_rate", type=float, default=1e-4, help="Learning rate")
     parser.add_argument("--max_samples_per_class", type=int, default=300000, 
                         help="Max samples per class after oversampling (set large for auto-balance)")
-    parser.add_argument("--oversampling_strategy", type=str, default="smote", choices=["smote", "resample"],
+    parser.add_argument("--oversampling_strategy", type=str, default="resample", choices=["smote", "resample"],
                         help="Oversampling strategy: 'smote' (synthetic) or 'resample' (replication)")
     parser.add_argument("--device", type=int, default=1, help="GPU device ID")
     parser.add_argument("--dropout", type=float, default=0.3, help="Dropout rate for MLP")
@@ -234,18 +234,19 @@ def load_cnn_data(dataset_dir,config):
     # 阶段1：计算所有音频的长度（95分位数）
     logger.info("计算音频长度的95分位数...")
     durations = []
-    for file_path, _ in tqdm(file_list, desc="统计音频长度"):
-        try:
-            signal, _ = librosa.load(file_path, sr=config.SAMPLE_RATE)
-            durations.append(len(signal))
-        except Exception as e:
-            print(str(e))
-            print(file_path)
-            pass  # 忽略损坏文件，后续处理时再捕获
+    # for file_path, _ in tqdm(file_list, desc="统计音频长度"):
+    #     try:
+    #         signal, _ = librosa.load(file_path, sr=config.SAMPLE_RATE)
+    #         durations.append(len(signal))
+    #     except Exception as e:
+    #         print(str(e))
+    #         print(file_path)
+    #         pass  # 忽略损坏文件，后续处理时再捕获
     
-    if not durations:
-        raise ValueError("无有效音频长度统计")
-    target_length = int(np.percentile(durations, 95))
+    # if not durations:
+    #     raise ValueError("无有效音频长度统计")
+    # target_length = int(np.percentile(durations, 95))
+    target_length = 1920000
     logger.info(f"音频长度95分位数：{target_length} 采样点，对应时长：{target_length / config.SAMPLE_RATE:.2f} 秒")
     
     # 阶段2：提取梅尔频谱图（多线程，128线程）

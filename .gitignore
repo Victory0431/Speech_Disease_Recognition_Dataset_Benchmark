@@ -18,7 +18,7 @@ events.out.tfevents.*
 !/benchmark/mlp_cnn_in_one_go
 !/benchmark/mantis_new
 !/benchmark/tools 
-
+!/benchmark/results
 
 
 
